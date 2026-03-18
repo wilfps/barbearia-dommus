@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Sparkles } from "lucide-react";
+import { BirthDateInput } from "@/components/birth-date-input";
 import { getSession } from "@/lib/auth";
 import { getSiteSetting } from "@/lib/db";
 
@@ -103,7 +104,12 @@ export default async function Home({ searchParams }: { searchParams: SearchParam
               <input name="name" placeholder="Nome completo" className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-stone-100 placeholder:text-stone-500 disabled:cursor-not-allowed disabled:opacity-60" required disabled={isBlocked} />
               <input name="email" type="email" placeholder="Email" className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-stone-100 placeholder:text-stone-500 disabled:cursor-not-allowed disabled:opacity-60" required disabled={isBlocked} />
               <input name="phone" placeholder="Telefone" className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-stone-100 placeholder:text-stone-500 disabled:cursor-not-allowed disabled:opacity-60" required disabled={isBlocked} />
-              <input name="birthDate" placeholder="Data de nascimento (dd/mm/aaaa)" className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-stone-100 placeholder:text-stone-500 disabled:cursor-not-allowed disabled:opacity-60" required disabled={isBlocked} />
+              <BirthDateInput
+                name="birthDate"
+                className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-stone-100 placeholder:text-stone-500 disabled:cursor-not-allowed disabled:opacity-60"
+                required
+                disabled={isBlocked}
+              />
               <input name="password" type="password" placeholder="Senha" className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-stone-100 placeholder:text-stone-500 disabled:cursor-not-allowed disabled:opacity-60" required disabled={isBlocked} />
               <button type="submit" disabled={isBlocked} className="rounded-2xl border border-amber-300/60 px-4 py-3 font-semibold text-amber-100 transition hover:bg-amber-300/10 disabled:cursor-not-allowed disabled:border-stone-600 disabled:text-stone-400">
                 Criar minha conta

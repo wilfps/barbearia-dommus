@@ -1,4 +1,4 @@
-# Deploy Dommus na Hostinger VPS
+﻿# Deploy Dommus na Hostinger VPS
 
 Este guia foi feito para subir a Dommus na VPS da Hostinger sem depender do PC local.
 
@@ -7,27 +7,28 @@ Este guia foi feito para subir a Dommus na VPS da Hostinger sem depender do PC l
 - VPS Hostinger com Ubuntu
 - Node.js
 - PM2 para manter o app no ar
-- domínio `barbeariadommus.com.br`
+- dominio `barbeariadommus.com.br`
 
 ## 2. O que precisa existir antes
 
 - VPS ativa
-- domínio apontando para a Hostinger
+- dominio apontando para a Hostinger
 - senha root definida
 - projeto salvo no computador
 
 ## 3. O que precisa ir para a VPS
 
-- código do projeto
+- codigo do projeto
 - arquivo `.env`
-- banco `data/dommus.db` se ainda for usar SQLite
-- pasta `public/uploads/` se quiser manter fotos já enviadas
+- banco SQLite em caminho persistente
+- pasta `public/uploads/` se quiser manter fotos ja enviadas
 
-## 4. Variáveis importantes do `.env`
+## 4. Variaveis importantes do `.env`
 
 Exemplo minimo:
 
 ```env
+DB_PATH=/var/lib/dommus/dommus.db
 AUTH_SECRET=troque-por-uma-chave-bem-forte
 WHATSAPP_PROVIDER=meta-cloud-api
 WHATSAPP_TOKEN=
@@ -51,7 +52,24 @@ apt install -y nodejs
 npm install -g pm2
 ```
 
-## 6. Subir o projeto
+## 6. Configurar o SQLite fora da pasta do app
+
+O ideal na VPS e deixar o banco fora de `/root/dommus-app`, assim ele nao fica misturado com o codigo.
+
+```bash
+mkdir -p /var/lib/dommus
+mkdir -p /var/backups/dommus
+chmod 755 /var/lib/dommus
+chmod 755 /var/backups/dommus
+```
+
+No arquivo `.env`, use:
+
+```env
+DB_PATH=/var/lib/dommus/dommus.db
+```
+
+## 7. Subir o projeto
 
 Se for usar GitHub:
 
@@ -65,7 +83,7 @@ pm2 save
 pm2 startup
 ```
 
-## 7. Portas e acesso
+## 8. Portas e acesso
 
 O app Next sobe por padrao na porta `3000`.
 
@@ -75,37 +93,46 @@ Se for testar direto pelo IP:
 PORT=3000 npm run start
 ```
 
-## 8. Recomendação de produção
+## 9. Recomendacao de producao
 
-O ideal depois é colocar Nginx na frente para:
+O ideal depois e colocar Nginx na frente para:
 
-- usar o domínio
+- usar o dominio
 - ativar HTTPS
 - fazer proxy para `localhost:3000`
 
-## 9. Banco atual
+## 10. Banco atual
 
-Hoje o projeto usa SQLite em:
+Agora o projeto aceita SQLite em caminho configuravel por `DB_PATH`.
+
+Recomendacao na VPS:
 
 ```text
-data/dommus.db
+/var/lib/dommus/dommus.db
 ```
 
-Funciona para subir rápido.
+Funciona bem para subir rapido e manter os cadastros separados do codigo.
 
-Para produção mais segura, o próximo passo recomendado é migrar para PostgreSQL gerenciado.
+Para producao mais segura, o proximo passo recomendado continua sendo migrar para PostgreSQL gerenciado.
 
-## 10. Backup minimo
+## 11. Backup minimo
 
 Se ainda estiver usando SQLite, sempre copie:
 
-- `data/dommus.db`
+- `/var/lib/dommus/dommus.db`
 - `public/uploads/`
 
-## 11. Ordem recomendada
+Backup manual simples:
+
+```bash
+cp /var/lib/dommus/dommus.db /var/backups/dommus/dommus-$(date +%F-%H%M%S).db
+```
+
+## 12. Ordem recomendada
 
 1. Subir o projeto na VPS
-2. Confirmar acesso pelo IP
-3. Apontar domínio
-4. Ativar HTTPS
-5. Depois migrar banco para PostgreSQL
+2. Configurar `DB_PATH`
+3. Confirmar acesso pelo IP
+4. Apontar dominio
+5. Ativar HTTPS
+6. Depois migrar banco para PostgreSQL

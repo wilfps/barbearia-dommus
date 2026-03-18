@@ -1,10 +1,11 @@
-import { AppShell } from "@/components/shell";
+﻿import { AppShell } from "@/components/shell";
 import { StatCard } from "@/components/stat-card";
 import { requireRoles } from "@/lib/auth";
 import {
   getSiteSetting,
   listAllServices,
   listAllUsers,
+  listCustomers,
   listLeads,
   listPendingAppointmentsForOwner,
 } from "@/lib/db";
@@ -12,6 +13,7 @@ import { formatDateTime, formatMoney } from "@/lib/format";
 
 type SearchParams = Promise<{
   userSearch?: string;
+  customerSearch?: string;
 }>;
 
 function roleLabel(role: string) {
@@ -65,6 +67,7 @@ export default async function OwnerPage({ searchParams }: { searchParams: Search
   await requireRoles(["OWNER"]);
   const params = await searchParams;
   const searchTerm = params.userSearch?.trim() ?? "";
+  const customerSearch = params.customerSearch?.trim() ?? "";
 
   const [site, users, pendingAppointments, leads, services] = await Promise.all([
     Promise.resolve(getSiteSetting()),
@@ -81,6 +84,7 @@ export default async function OwnerPage({ searchParams }: { searchParams: Search
         return haystack.includes(searchTerm.toLowerCase());
       })
     : [];
+  const customerResults = customerSearch ? listCustomers(customerSearch) : [];
 
   return (
     <AppShell
@@ -191,6 +195,48 @@ export default async function OwnerPage({ searchParams }: { searchParams: Search
                 </div>
               </div>
             ))}
+          </div>
+        </section>
+
+        <section className="glass rounded-[24px] p-4 sm:rounded-[32px] sm:p-6">
+          <p className="text-xs uppercase tracking-[0.45em] text-amber-200/60">Banco de clientes</p>
+          <h2 className="mt-3 text-2xl text-amber-50 sm:text-3xl">Pesquisar clientes cadastrados</h2>
+          <p className="mt-3 max-w-3xl text-sm text-stone-300">
+            Aqui você consulta a base de clientes da Dommus por nome ou telefone sempre que precisar.
+          </p>
+
+          <form method="get" action="/owner" className="mt-6 flex flex-col gap-3 sm:flex-row">
+            <input
+              name="customerSearch"
+              defaultValue={customerSearch}
+              placeholder="Pesquisar por nome ou telefone"
+              className="flex-1 rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-stone-100 placeholder:text-stone-500"
+            />
+            <button type="submit" className="rounded-2xl bg-amber-300 px-5 py-3 font-semibold text-stone-950 transition hover:bg-amber-200">
+              Pesquisar cliente
+            </button>
+          </form>
+
+          <div className="mt-6 space-y-3">
+            {customerSearch ? (
+              customerResults.length ? (
+                customerResults.map((customer) => (
+                  <div key={customer.id} className="rounded-[24px] border border-white/10 bg-black/15 p-5">
+                    <p className="text-lg text-amber-50">{customer.name}</p>
+                    <p className="mt-2 text-sm text-stone-300">{customer.phone}</p>
+                    <p className="mt-1 text-sm text-stone-400">{customer.email}</p>
+                  </div>
+                ))
+              ) : (
+                <div className="rounded-[24px] border border-dashed border-white/10 bg-black/15 p-5 text-sm text-stone-400">
+                  Nenhum cliente encontrado com essa pesquisa.
+                </div>
+              )
+            ) : (
+              <div className="rounded-[24px] border border-dashed border-white/10 bg-black/15 p-5 text-sm text-stone-400">
+                Digite um nome ou telefone para consultar a base de clientes.
+              </div>
+            )}
           </div>
         </section>
 

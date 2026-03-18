@@ -5,8 +5,9 @@ import Database from "better-sqlite3";
 import bcrypt from "bcryptjs";
 import { toBrazilDateTimeIso } from "@/lib/brazil-time";
 
-const dataDir = path.join(process.cwd(), "data");
-const dbPath = path.join(dataDir, "dommus.db");
+const defaultDbPath = path.join(process.cwd(), "data", "dommus.db");
+const dbPath = process.env.DB_PATH?.trim() || defaultDbPath;
+const dataDir = path.dirname(dbPath);
 
 if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });

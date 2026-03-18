@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BirthDateInput } from "@/components/birth-date-input";
 import { AppShell } from "@/components/shell";
 import { StatCard } from "@/components/stat-card";
 import { requireRoles } from "@/lib/auth";
@@ -85,7 +86,11 @@ export default async function ClienteMinhaAreaPage({ searchParams }: { searchPar
               </label>
               <input name="email" type="email" defaultValue={user.email} className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-stone-100" />
               <input name="phone" type="text" defaultValue={user.phone} className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-stone-100" />
-              <input name="birthDate" type="text" defaultValue={formatBirthDate(user.birth_date)} placeholder="Data de nascimento (dd/mm/aaaa)" className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-stone-100 placeholder:text-stone-500" />
+              <BirthDateInput
+                name="birthDate"
+                defaultValue={formatBirthDate(user.birth_date)}
+                className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-stone-100 placeholder:text-stone-500"
+              />
               <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                 <button type="submit" className="rounded-2xl bg-amber-300 px-4 py-3 font-semibold text-stone-950 transition hover:bg-amber-200">
                   Salvar perfil
