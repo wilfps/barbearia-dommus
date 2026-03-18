@@ -3,10 +3,11 @@ import { BirthDateInput } from "@/components/birth-date-input";
 import { AppShell } from "@/components/shell";
 import { StatCard } from "@/components/stat-card";
 import { requireRoles } from "@/lib/auth";
-import { listUserAppointments } from "@/lib/db";
+import { getSiteSetting, listUserAppointments } from "@/lib/db";
 import { buildWhatsAppLink, formatBirthDate, formatDateTime, formatMoney } from "@/lib/format";
-import { buildPixMessage, getWhatsAppIntegrationConfig } from "@/lib/integrations/whatsapp";
+import { getInfinitePayCheckoutConfig } from "@/lib/integrations/infinitepay";
 import { buildPixCheckoutPayload, getPixIntegrationConfig } from "@/lib/integrations/pix";
+import { buildPixMessage, getWhatsAppIntegrationConfig } from "@/lib/integrations/whatsapp";
 
 type SearchParams = Promise<{
   checkout?: string;
@@ -20,6 +21,8 @@ export default async function ClienteMinhaAreaPage({ searchParams }: { searchPar
   const confirmedAppointments = appointments.filter((appointment) => appointment.status === "CONFIRMED");
   const avatarSrc = user.avatar_path ? `${user.avatar_path}?v=${encodeURIComponent(user.updated_at)}` : null;
   const needsBirthDate = !user.birth_date;
+  const site = getSiteSetting();
+  const checkoutConfig = getInfinitePayCheckoutConfig(site);
   const whatsappConfig = getWhatsAppIntegrationConfig();
   const pixConfig = getPixIntegrationConfig();
 
@@ -61,11 +64,7 @@ export default async function ClienteMinhaAreaPage({ searchParams }: { searchPar
                 >
                   {avatarSrc ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={avatarSrc}
-                      alt={user.name}
-                      className="absolute inset-0 h-full w-full object-cover"
-                    />
+                    <img src={avatarSrc} alt={user.name} className="absolute inset-0 h-full w-full object-cover" />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center text-2xl font-semibold text-amber-100">
                       {user.name.charAt(0).toUpperCase()}
@@ -103,7 +102,8 @@ export default async function ClienteMinhaAreaPage({ searchParams }: { searchPar
             <p className="text-xs uppercase tracking-[0.45em] text-amber-200/60">Check-out</p>
             <h2 className="mt-3 text-2xl text-amber-50 sm:text-3xl">Finalize seu pagamento</h2>
             <p className="mt-2 text-sm text-stone-300">
-              PIX configurado: {pixConfig.tokenConfigured && pixConfig.pixKeyConfigured ? "pronto para integrar checkout real" : "modo preparação"}.
+              Checkout online: {checkoutConfig.handleConfigured ? "estrutura preparada no painel admin" : "aguardando configuração do admin"}.
+              {" "}PIX: {pixConfig.tokenConfigured && pixConfig.pixKeyConfigured ? "estrutura pronta para integração real" : "modo preparação"}.
               {" "}WhatsApp: {whatsappConfig.tokenConfigured && whatsappConfig.phoneIdConfigured ? "pronto para envio automático" : "link direto por enquanto"}.
             </p>
             <div className="mt-6 space-y-4">
@@ -141,15 +141,13 @@ export default async function ClienteMinhaAreaPage({ searchParams }: { searchPar
                         description: `Sinal da reserva - ${appointment.service_name}`,
                       });
 
-                      return (
-                        <input type="hidden" name={`pix-preview-${appointment.id}`} value={JSON.stringify(pixPayload)} />
-                      );
+                      return <input type="hidden" name={`pix-preview-${appointment.id}`} value={JSON.stringify(pixPayload)} />;
                     })()}
                     <form action="/api/bookings/pay" method="post">
                       <input type="hidden" name="appointmentId" value={appointment.id} />
                       <input type="hidden" name="returnTo" value="/cliente/minha-area#protocolos" />
                       <button type="submit" className="rounded-2xl bg-amber-300 px-4 py-2 font-semibold text-stone-950 transition hover:bg-amber-200">
-                        Finalizar pagamento do sinal
+                        Finalizar pagamento
                       </button>
                     </form>
                     <Link
@@ -168,12 +166,12 @@ export default async function ClienteMinhaAreaPage({ searchParams }: { searchPar
                       Receber PIX no WhatsApp
                     </Link>
                     <form action="/api/customer/appointments/cancel" method="post">
-                    <input type="hidden" name="appointmentId" value={appointment.id} />
-                    <input type="hidden" name="returnTo" value="/cliente/minha-area#checkout" />
-                    <button type="submit" className="rounded-2xl border border-red-500/45 bg-red-500/10 px-4 py-2 font-semibold text-red-200 transition hover:bg-red-500/20">
-                      Cancelar e escolher novamente
-                    </button>
-                  </form>
+                      <input type="hidden" name="appointmentId" value={appointment.id} />
+                      <input type="hidden" name="returnTo" value="/cliente/minha-area#checkout" />
+                      <button type="submit" className="rounded-2xl border border-red-500/45 bg-red-500/10 px-4 py-2 font-semibold text-red-200 transition hover:bg-red-500/20">
+                        Cancelar e escolher novamente
+                      </button>
+                    </form>
                   </div>
                 </div>
               ))}
@@ -207,9 +205,7 @@ export default async function ClienteMinhaAreaPage({ searchParams }: { searchPar
                   </div>
                 </div>
                 <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-                  <p className="text-sm text-emerald-300">
-                    Reserva ativa com protocolo pronto para identificação junto ao barbeiro.
-                  </p>
+                  <p className="text-sm text-emerald-300">Reserva ativa com protocolo pronto para identificação junto ao barbeiro.</p>
                   <form action="/api/customer/appointments/cancel" method="post">
                     <input type="hidden" name="appointmentId" value={appointment.id} />
                     <input type="hidden" name="returnTo" value="/cliente/minha-area#checkout" />
@@ -236,6 +232,3 @@ export default async function ClienteMinhaAreaPage({ searchParams }: { searchPar
     </AppShell>
   );
 }
-
-
-

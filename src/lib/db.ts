@@ -21,6 +21,10 @@ export type SiteSetting = {
   site_name: string;
   is_open: number;
   maintenance_message: string;
+  checkout_provider?: string | null;
+  checkout_handle?: string | null;
+  checkout_redirect_url?: string | null;
+  checkout_webhook_url?: string | null;
   updated_at: string;
 };
 
@@ -112,7 +116,13 @@ function nowIso() {
 function ensureColumn(table: string, column: string, definition: string) {
   const columns = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
   if (!columns.some((item) => item.name === column)) {
-    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+    try {
+      db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+    } catch (error) {
+      if (!(error instanceof Error) || !error.message.toLowerCase().includes("duplicate column name")) {
+        throw error;
+      }
+    }
   }
 }
 
@@ -214,6 +224,10 @@ function initDb() {
   ensureColumn("users", "avatar_path", "TEXT");
   ensureColumn("users", "birth_date", "TEXT");
   ensureColumn("appointments", "service_summary", "TEXT");
+  ensureColumn("site_settings", "checkout_provider", "TEXT DEFAULT 'infinitepay'");
+  ensureColumn("site_settings", "checkout_handle", "TEXT");
+  ensureColumn("site_settings", "checkout_redirect_url", "TEXT");
+  ensureColumn("site_settings", "checkout_webhook_url", "TEXT");
 
   db.prepare(
     "INSERT OR IGNORE INTO site_settings (id, site_name, is_open, maintenance_message, updated_at) VALUES (?, ?, ?, ?, ?)",
@@ -427,6 +441,25 @@ export function updateSiteSetting(isOpen: boolean, maintenanceMessage: string) {
     SET is_open = ?, maintenance_message = ?, updated_at = ?
     WHERE id = 'main'
   `).run(isOpen ? 1 : 0, maintenanceMessage, nowIso());
+}
+
+export function updateCheckoutSettings(input: {
+  provider: string;
+  handle: string;
+  redirectUrl: string;
+  webhookUrl: string;
+}) {
+  db.prepare(`
+    UPDATE site_settings
+    SET checkout_provider = ?, checkout_handle = ?, checkout_redirect_url = ?, checkout_webhook_url = ?, updated_at = ?
+    WHERE id = 'main'
+  `).run(
+    input.provider || "infinitepay",
+    input.handle || null,
+    input.redirectUrl || null,
+    input.webhookUrl || null,
+    nowIso(),
+  );
 }
 
 export function getUserByEmail(email: string) {

@@ -10,6 +10,7 @@ import {
   listPendingAppointmentsForOwner,
 } from "@/lib/db";
 import { formatDateTime, formatMoney } from "@/lib/format";
+import { getInfinitePayCheckoutConfig } from "@/lib/integrations/infinitepay";
 
 type SearchParams = Promise<{
   userSearch?: string;
@@ -85,6 +86,7 @@ export default async function OwnerPage({ searchParams }: { searchParams: Search
       })
     : [];
   const customerResults = customerSearch ? listCustomers(customerSearch) : [];
+  const checkoutConfig = getInfinitePayCheckoutConfig(site);
 
   return (
     <AppShell
@@ -196,6 +198,77 @@ export default async function OwnerPage({ searchParams }: { searchParams: Search
               </div>
             ))}
           </div>
+        </section>
+
+        <section className="glass rounded-[24px] p-4 sm:rounded-[32px] sm:p-6">
+          <p className="text-xs uppercase tracking-[0.45em] text-amber-200/60">Checkout online</p>
+          <h2 className="mt-3 text-2xl text-amber-50 sm:text-3xl">Preparar checkout da InfinitePay</h2>
+          <p className="mt-3 max-w-3xl text-sm text-stone-300">
+            Deixe a estrutura pronta aqui. Quando o Gabriel criar a conta, você só ajusta a InfiniteTag e ativa a integração
+            real sem precisar mexer no código.
+          </p>
+
+          <div className="mt-4 grid gap-4 md:grid-cols-3">
+            <StatCard
+              label="Provider"
+              value="InfinitePay"
+              helper="Fluxo preparado para checkout externo com botão neutro."
+            />
+            <StatCard
+              label="Handle"
+              value={checkoutConfig.handleConfigured ? "Configurada" : "Pendente"}
+              helper="A InfiniteTag do recebedor entra aqui."
+            />
+            <StatCard
+              label="Ativação"
+              value={checkoutConfig.readyForActivation ? "Pronto" : "Em preparação"}
+              helper="Falta só a conta e o token real para ligar de vez."
+            />
+          </div>
+
+          <form action="/api/owner/checkout-settings" method="post" className="mt-6 grid gap-4 lg:grid-cols-2">
+            <div className="space-y-2">
+              <label className="text-sm text-stone-300">Provedor do checkout</label>
+              <input
+                name="provider"
+                defaultValue={checkoutConfig.provider || "infinitepay"}
+                readOnly
+                className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-stone-100"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm text-stone-300">InfiniteTag / handle</label>
+              <input
+                name="handle"
+                defaultValue={checkoutConfig.handle}
+                placeholder="@gabriel ou handle da conta"
+                className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-stone-100 placeholder:text-stone-500"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm text-stone-300">URL de retorno</label>
+              <input
+                name="redirectUrl"
+                defaultValue={checkoutConfig.redirectUrl}
+                placeholder="https://barbeariadommus.com.br/cliente/minha-area"
+                className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-stone-100 placeholder:text-stone-500"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm text-stone-300">Webhook futuro</label>
+              <input
+                name="webhookUrl"
+                defaultValue={checkoutConfig.webhookUrl}
+                placeholder="https://barbeariadommus.com.br/api/payments/infinitepay/webhook"
+                className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-stone-100 placeholder:text-stone-500"
+              />
+            </div>
+            <div className="lg:col-span-2">
+              <button type="submit" className="rounded-2xl bg-amber-300 px-4 py-3 font-semibold text-stone-950 transition hover:bg-amber-200">
+                Salvar configuração do checkout
+              </button>
+            </div>
+          </form>
         </section>
 
         <section className="glass rounded-[24px] p-4 sm:rounded-[32px] sm:p-6">
