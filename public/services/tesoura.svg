@@ -1,0 +1,10 @@
+<svg width="1200" height="800" viewBox="0 0 1200 800" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="800" fill="#120E0C"/>
+  <circle cx="950" cy="130" r="180" fill="#3B2C1E"/>
+  <circle cx="950" cy="130" r="120" fill="#D2B27C" fill-opacity="0.2"/>
+  <path d="M210 590L530 270" stroke="#F3D39A" stroke-width="28" stroke-linecap="round"/>
+  <path d="M385 235L610 460" stroke="#D2B27C" stroke-width="28" stroke-linecap="round"/>
+  <circle cx="316" cy="485" r="64" stroke="#F3D39A" stroke-width="18"/>
+  <circle cx="468" cy="335" r="64" stroke="#F3D39A" stroke-width="18"/>
+  <text x="92" y="710" fill="#F8F1E3" font-size="68" font-family="Georgia, serif">Corte na tesoura</text>
+</svg>

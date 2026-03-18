@@ -1,0 +1,8 @@
+<svg width="1200" height="800" viewBox="0 0 1200 800" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="800" fill="#120D0A"/>
+  <path d="M600 170C495 170 410 255 410 360C410 441 460 509 530 537V650H670V537C740 509 790 441 790 360C790 255 705 170 600 170Z" fill="#F3D39A"/>
+  <path d="M492 430C529 477 571 500 600 500C629 500 671 477 708 430" stroke="#2B211A" stroke-width="24" stroke-linecap="round"/>
+  <path d="M370 255L255 145" stroke="#D2B27C" stroke-width="20" stroke-linecap="round"/>
+  <path d="M830 255L945 145" stroke="#D2B27C" stroke-width="20" stroke-linecap="round"/>
+  <text x="90" y="710" fill="#F8F1E3" font-size="68" font-family="Georgia, serif">Barba</text>
+</svg>

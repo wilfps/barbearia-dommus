@@ -1,0 +1,158 @@
+@import "tailwindcss";
+
+:root {
+  --background: #0f0b09;
+  --foreground: #f8f1e3;
+  --card: rgba(255, 255, 255, 0.06);
+  --muted: #c9baa0;
+  --gold: #d2b27c;
+  --gold-strong: #f5d49b;
+  --line: rgba(255, 255, 255, 0.1);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-body);
+  --font-heading: var(--font-heading);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-body), sans-serif;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-heading), serif;
+}
+
+input,
+select,
+textarea {
+  outline: none;
+}
+
+::selection {
+  background: rgba(210, 178, 124, 0.35);
+}
+
+.glass {
+  border: 1px solid var(--line);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03));
+  backdrop-filter: blur(14px);
+}
+
+.gold-ring {
+  box-shadow:
+    0 0 0 1px rgba(210, 178, 124, 0.35),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+}
+
+.status-icon {
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+  min-height: 40px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  position: relative;
+  background:
+    radial-gradient(circle at 30% 25%, rgba(255, 255, 255, 0.12), transparent 45%),
+    rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 8px 18px rgba(0, 0, 0, 0.14);
+}
+
+.status-icon::after {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  pointer-events: none;
+}
+
+.status-icon__core {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  min-width: 26px;
+  height: 26px;
+  min-height: 26px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.14);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.status-icon svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+  stroke: currentColor;
+  stroke-width: 2.9;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  overflow: visible;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.22));
+}
+
+.status-icon path {
+  stroke: currentColor;
+  fill: none;
+}
+
+.status-icon.paid {
+  color: #3ddc84;
+  border: 1.5px solid rgba(61, 220, 132, 0.92);
+  background:
+    radial-gradient(circle at 30% 25%, rgba(180, 255, 213, 0.2), transparent 45%),
+    rgba(61, 220, 132, 0.08);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 0 18px rgba(61, 220, 132, 0.24),
+    0 8px 18px rgba(0, 0, 0, 0.16);
+}
+
+.status-icon.pending {
+  color: #d9a441;
+  border: 1.5px solid rgba(217, 164, 65, 0.92);
+  background:
+    radial-gradient(circle at 30% 25%, rgba(255, 236, 163, 0.18), transparent 45%),
+    rgba(217, 164, 65, 0.08);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 0 18px rgba(217, 164, 65, 0.24),
+    0 8px 18px rgba(0, 0, 0, 0.16);
+}
+
+.status-icon.canceled {
+  color: #e14b4b;
+  border: 1.5px solid rgba(225, 75, 75, 0.92);
+  background:
+    radial-gradient(circle at 30% 25%, rgba(255, 181, 181, 0.16), transparent 45%),
+    rgba(225, 75, 75, 0.08);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 0 18px rgba(225, 75, 75, 0.24),
+    0 8px 18px rgba(0, 0, 0, 0.16);
+}

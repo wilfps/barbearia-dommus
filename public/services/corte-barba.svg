@@ -1,0 +1,8 @@
+<svg width="1200" height="800" viewBox="0 0 1200 800" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="800" fill="#0F0B09"/>
+  <path d="M510 160C380 160 300 250 300 380C300 504 392 606 510 626V680H690V626C808 606 900 504 900 380C900 250 820 160 690 160H510Z" fill="#D2B27C"/>
+  <path d="M440 360C470 422 530 460 600 460C670 460 730 422 760 360" stroke="#1A1410" stroke-width="26" stroke-linecap="round"/>
+  <circle cx="520" cy="310" r="22" fill="#1A1410"/>
+  <circle cx="680" cy="310" r="22" fill="#1A1410"/>
+  <text x="90" y="710" fill="#F8F1E3" font-size="68" font-family="Georgia, serif">Corte e barba</text>
+</svg>

@@ -1,0 +1,821 @@
+import fs from "node:fs";
+import path from "node:path";
+import crypto from "node:crypto";
+import Database from "better-sqlite3";
+import bcrypt from "bcryptjs";
+import { toBrazilDateTimeIso } from "@/lib/brazil-time";
+
+const dataDir = path.join(process.cwd(), "data");
+const dbPath = path.join(dataDir, "dommus.db");
+
+if (!fs.existsSync(dataDir)) {
+  fs.mkdirSync(dataDir, { recursive: true });
+}
+
+const db = new Database(dbPath);
+db.pragma("foreign_keys = ON");
+
+export type SiteSetting = {
+  id: string;
+  site_name: string;
+  is_open: number;
+  maintenance_message: string;
+  updated_at: string;
+};
+
+export type UserRecord = {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  birth_date?: string | null;
+  avatar_path?: string | null;
+  password_hash: string;
+  role: string;
+  is_active: number;
+  created_at: string;
+  updated_at: string;
+  bio?: string | null;
+  specialty?: string | null;
+  starts_at_hour?: number | null;
+  ends_at_hour?: number | null;
+  interval_minutes?: number | null;
+};
+
+export type ServiceRecord = {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  price_in_cents: number;
+  duration_minutes: number;
+  image_path: string;
+  is_active: number;
+};
+
+export type AppointmentRecord = {
+  id: string;
+  protocol_code: string;
+  customer_id: string;
+  barber_id: string;
+  service_id: string;
+  service_summary?: string | null;
+  scheduled_at: string;
+  end_at: string;
+  total_price_in_cents: number;
+  deposit_in_cents: number;
+  status: string;
+  deposit_status: string;
+  notes?: string | null;
+  created_at: string;
+  customer_name?: string;
+  customer_email?: string;
+  customer_phone?: string;
+  customer_avatar_path?: string | null;
+  barber_name?: string;
+  service_name?: string;
+};
+
+export type BlockedSlotRecord = {
+  id: string;
+  barber_id: string;
+  starts_at: string;
+  ends_at: string;
+  reason?: string | null;
+  created_at: string;
+  barber_name?: string;
+};
+
+export type LeadRecord = {
+  id: string;
+  user_id?: string | null;
+  service_id?: string | null;
+  started_at: string;
+  last_step: string;
+  is_converted: number;
+  created_at: string;
+  user_name?: string | null;
+  user_email?: string | null;
+  user_phone?: string | null;
+  service_name?: string | null;
+};
+
+function createId(prefix: string) {
+  return `${prefix}_${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`;
+}
+
+function nowIso() {
+  return new Date().toISOString();
+}
+
+function ensureColumn(table: string, column: string, definition: string) {
+  const columns = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
+  if (!columns.some((item) => item.name === column)) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+  }
+}
+
+function initDb() {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS site_settings (
+      id TEXT PRIMARY KEY,
+      site_name TEXT NOT NULL,
+      is_open INTEGER NOT NULL DEFAULT 1,
+      maintenance_message TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      email TEXT NOT NULL UNIQUE,
+      phone TEXT NOT NULL,
+      password_hash TEXT NOT NULL,
+      role TEXT NOT NULL DEFAULT 'CUSTOMER',
+      is_active INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS barber_profiles (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL UNIQUE,
+      bio TEXT,
+      specialty TEXT,
+      starts_at_hour INTEGER NOT NULL DEFAULT 9,
+      ends_at_hour INTEGER NOT NULL DEFAULT 19,
+      interval_minutes INTEGER NOT NULL DEFAULT 30,
+      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS services (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      slug TEXT NOT NULL UNIQUE,
+      description TEXT NOT NULL,
+      price_in_cents INTEGER NOT NULL,
+      duration_minutes INTEGER NOT NULL,
+      image_path TEXT NOT NULL,
+      is_active INTEGER NOT NULL DEFAULT 1
+    );
+
+    CREATE TABLE IF NOT EXISTS appointments (
+      id TEXT PRIMARY KEY,
+      protocol_code TEXT NOT NULL UNIQUE,
+      customer_id TEXT NOT NULL,
+      barber_id TEXT NOT NULL,
+      service_id TEXT NOT NULL,
+      scheduled_at TEXT NOT NULL,
+      end_at TEXT NOT NULL,
+      total_price_in_cents INTEGER NOT NULL,
+      deposit_in_cents INTEGER NOT NULL,
+      status TEXT NOT NULL,
+      deposit_status TEXT NOT NULL,
+      notes TEXT,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY(customer_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY(barber_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY(service_id) REFERENCES services(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS blocked_slots (
+      id TEXT PRIMARY KEY,
+      barber_id TEXT NOT NULL,
+      starts_at TEXT NOT NULL,
+      ends_at TEXT NOT NULL,
+      reason TEXT,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY(barber_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS reminder_logs (
+      id TEXT PRIMARY KEY,
+      appointment_id TEXT NOT NULL,
+      type TEXT NOT NULL,
+      sent_at TEXT,
+      channel TEXT,
+      FOREIGN KEY(appointment_id) REFERENCES appointments(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS abandoned_leads (
+      id TEXT PRIMARY KEY,
+      user_id TEXT,
+      service_id TEXT,
+      started_at TEXT NOT NULL,
+      last_step TEXT NOT NULL,
+      is_converted INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE SET NULL,
+      FOREIGN KEY(service_id) REFERENCES services(id) ON DELETE SET NULL
+    );
+  `);
+
+  ensureColumn("users", "avatar_path", "TEXT");
+  ensureColumn("users", "birth_date", "TEXT");
+  ensureColumn("appointments", "service_summary", "TEXT");
+
+  db.prepare(
+    "INSERT OR IGNORE INTO site_settings (id, site_name, is_open, maintenance_message, updated_at) VALUES (?, ?, ?, ?, ?)",
+  ).run("main", "Dommus Barbearia", 1, "Sistema temporariamente indisponível. Entre em contato com a Dommus.", nowIso());
+
+  const insertService = db.prepare(`
+    INSERT OR IGNORE INTO services (id, name, slug, description, price_in_cents, duration_minutes, image_path, is_active)
+    VALUES (@id, @name, @slug, @description, @price_in_cents, @duration_minutes, @image_path, 1)
+  `);
+
+  [
+    ["service_tesoura", "Cabelo", "cabelo", "Corte e acabamento do cabelo.", 5500, 30, "/services/tesoura.jpg"],
+    ["service_maquina", "Sobrancelha", "sombrancelha", "Desenho e alinhamento da sobrancelha.", 4000, 30, "/services/sombrancelha.jpg"],
+    ["service_corte_barba", "Cabelo e barba", "cabelo-barba", "Pacote completo de cabelo e barba.", 7500, 60, "/services/corte-barba.jpg"],
+    ["service_cabelo_barba_terapia", "Cabelo e Barboterapia", "cabelo-barboterapia", "Pacote completo de cabelo e barboterapia premium.", 11000, 60, "/services/cabelo-barboterapia.jpg"],
+    ["service_barba", "Barboterapia", "barboterapia", "Desenho e alinhamento com toalha quente e acabamento premium.", 3000, 30, "/services/barboterapia.jpg"],
+    ["service_depilacao", "Depilação com cera", "depilacao-cera", "Depilação rápida com acabamento limpo.", 2000, 10, "/services/depilacao-cera.jpg"],
+    ["service_acabamento", "Acabamento", "acabamento", "Acabamento rápido para deixar tudo alinhado.", 1500, 10, "/services/acabamento.jpg"],
+    ["service_alisante", "Alisante", "alisante", "Alisamento rápido com acabamento profissional.", 6500, 30, "/services/pintura.jpg"],
+    ["service_pintura", "Pigmentação", "piguimentacao", "Pigmentação com acabamento profissional.", 9500, 60, "/services/piguimentacao.jpg"],
+    ["service_progressiva", "Progressiva", "progressiva", "Progressiva completa com duração maior.", 12000, 60, "/services/pintura.jpg"],
+  ].forEach(([id, name, slug, description, price_in_cents, duration_minutes, image_path]) => {
+    insertService.run({ id, name, slug, description, price_in_cents, duration_minutes, image_path });
+  });
+
+  const userCount = db.prepare("SELECT COUNT(*) as count FROM users").get() as { count: number };
+  if (!userCount.count) {
+    const insertUser = db.prepare(`
+      INSERT OR IGNORE INTO users (id, name, email, phone, password_hash, role, is_active, created_at, updated_at)
+      VALUES (@id, @name, @email, @phone, @password_hash, @role, 1, @created_at, @updated_at)
+    `);
+    const createdAt = nowIso();
+
+    insertUser.run({
+      id: "user_owner",
+      name: "Dono do Sistema",
+      email: "owner@dommus.com",
+      phone: "(11) 99999-0000",
+      password_hash: bcrypt.hashSync("owner123", 10),
+      role: "OWNER",
+      created_at: createdAt,
+      updated_at: createdAt,
+    });
+
+    insertUser.run({
+      id: "user_barber",
+      name: "Gabriel Rodrigues",
+      email: "barbeiro@dommus.com",
+      phone: "(11) 98888-1111",
+      password_hash: bcrypt.hashSync("barber123", 10),
+      role: "ADMIN",
+      created_at: createdAt,
+      updated_at: createdAt,
+    });
+
+    insertUser.run({
+      id: "user_customer",
+      name: "Mateus Cliente",
+      email: "cliente@dommus.com",
+      phone: "(11) 97777-2222",
+      password_hash: bcrypt.hashSync("cliente123", 10),
+      role: "CUSTOMER",
+      created_at: createdAt,
+      updated_at: createdAt,
+    });
+
+    db.prepare(`
+      INSERT OR IGNORE INTO barber_profiles (id, user_id, bio, specialty, starts_at_hour, ends_at_hour, interval_minutes)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      "profile_barber",
+      "user_barber",
+      "Especialista em cortes clássicos e barba desenhada.",
+      "Navalha e degradê",
+      9,
+      20,
+      30,
+    );
+
+    const scheduledAt = new Date();
+    scheduledAt.setDate(scheduledAt.getDate() + 1);
+    scheduledAt.setHours(15, 0, 0, 0);
+
+    db.prepare(`
+      INSERT OR IGNORE INTO appointments (
+        id, protocol_code, customer_id, barber_id, service_id, scheduled_at, end_at,
+        total_price_in_cents, deposit_in_cents, status, deposit_status, notes, created_at, service_summary
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      "appointment_demo",
+      "DOMMUS-0001",
+      "user_customer",
+      "user_barber",
+      "service_corte_barba",
+      scheduledAt.toISOString(),
+      new Date(scheduledAt.getTime() + 60 * 60000).toISOString(),
+      7500,
+      3750,
+      "CONFIRMED",
+      "PAID",
+      "Cliente VIP",
+      createdAt,
+      "Cabelo e barba",
+    );
+
+    db.prepare(`
+      INSERT OR IGNORE INTO abandoned_leads (id, user_id, service_id, started_at, last_step, is_converted, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      "lead_demo",
+      "user_customer",
+      "service_corte_barba",
+      createdAt,
+      "Escolheu o serviço, mas não concluiu o pagamento",
+      0,
+      createdAt,
+    );
+  }
+
+  db.prepare(`
+    UPDATE users
+    SET name = 'Gabriel Rodrigues'
+    WHERE id = 'user_barber' OR email = 'barbeiro@dommus.com'
+  `).run();
+
+  db.prepare(`
+    UPDATE blocked_slots
+    SET barber_id = 'user_barber'
+    WHERE barber_id <> 'user_barber'
+  `).run();
+
+  db.prepare(`
+    UPDATE services
+    SET image_path = '/services/barboterapia.jpg'
+    WHERE id = 'service_barba' OR slug IN ('barba', 'barboterapia')
+  `).run();
+
+  db.prepare(`
+    UPDATE services
+    SET name = CASE
+      WHEN id = 'service_tesoura' THEN 'Cabelo'
+      WHEN id = 'service_maquina' THEN 'Sobrancelha'
+      WHEN id = 'service_corte_barba' THEN 'Cabelo e barba'
+      WHEN id = 'service_cabelo_barba_terapia' THEN 'Cabelo e Barboterapia'
+      WHEN id = 'service_barba' THEN 'Barboterapia'
+      WHEN id = 'service_pintura' THEN 'Pigmentação'
+      ELSE name
+    END,
+    slug = CASE
+      WHEN id = 'service_tesoura' THEN 'cabelo'
+      WHEN id = 'service_maquina' THEN 'sombrancelha'
+      WHEN id = 'service_corte_barba' THEN 'cabelo-barba'
+      WHEN id = 'service_cabelo_barba_terapia' THEN 'cabelo-barboterapia'
+      WHEN id = 'service_barba' THEN 'barboterapia'
+      WHEN id = 'service_pintura' THEN 'piguimentacao'
+      ELSE slug
+    END,
+    description = CASE
+      WHEN id = 'service_tesoura' THEN 'Corte e acabamento do cabelo.'
+      WHEN id = 'service_maquina' THEN 'Desenho e alinhamento da sobrancelha.'
+      WHEN id = 'service_corte_barba' THEN 'Pacote completo de cabelo e barba.'
+      WHEN id = 'service_cabelo_barba_terapia' THEN 'Pacote completo de cabelo e barboterapia premium.'
+      WHEN id = 'service_barba' THEN 'Barboterapia com toalha quente e acabamento premium.'
+      WHEN id = 'service_pintura' THEN 'Pigmentação com acabamento profissional.'
+      ELSE description
+    END,
+    duration_minutes = CASE
+      WHEN id = 'service_tesoura' THEN 30
+      WHEN id = 'service_maquina' THEN 30
+      WHEN id = 'service_corte_barba' THEN 60
+      WHEN id = 'service_cabelo_barba_terapia' THEN 60
+      WHEN id = 'service_barba' THEN 30
+      WHEN id = 'service_depilacao' THEN 10
+      WHEN id = 'service_acabamento' THEN 10
+      WHEN id = 'service_alisante' THEN 30
+      WHEN id = 'service_pintura' THEN 60
+      WHEN id = 'service_progressiva' THEN 60
+      ELSE duration_minutes
+    END,
+    image_path = CASE
+      WHEN id = 'service_maquina' OR slug IN ('corte-maquina', 'sombrancelha') THEN '/services/sombrancelha.jpg'
+      WHEN id = 'service_tesoura' OR slug = 'corte-tesoura' THEN '/services/tesoura.jpg'
+      WHEN id = 'service_corte_barba' OR slug = 'corte-barba' THEN '/services/corte-barba.jpg'
+      WHEN id = 'service_cabelo_barba_terapia' OR slug IN ('cabelo-barba-terapia', 'cabelo-barboterapia') THEN '/services/cabelo-barboterapia.jpg'
+      WHEN id = 'service_depilacao' THEN '/services/depilacao-cera.jpg'
+      WHEN id = 'service_acabamento' THEN '/services/acabamento.jpg'
+      WHEN id IN ('service_alisante', 'service_progressiva') THEN '/services/pintura.jpg'
+      WHEN id = 'service_pintura' OR slug IN ('pintura-cabelo', 'piguimentacao') THEN '/services/piguimentacao.jpg'
+      ELSE image_path
+    END
+    WHERE id IN ('service_maquina', 'service_tesoura', 'service_corte_barba', 'service_cabelo_barba_terapia', 'service_barba', 'service_depilacao', 'service_acabamento', 'service_alisante', 'service_pintura', 'service_progressiva')
+      OR slug IN ('corte-maquina', 'corte-tesoura', 'corte-barba', 'cabelo-barba-terapia', 'cabelo-barboterapia', 'barba', 'barboterapia', 'pintura-cabelo', 'piguimentacao', 'depilacao-cera', 'acabamento', 'alisante', 'progressiva')
+  `).run();
+
+  db.prepare(`
+    UPDATE services
+    SET price_in_cents = 11000, duration_minutes = 60
+    WHERE id = 'service_cabelo_barba_terapia' OR slug IN ('cabelo-barba-terapia', 'cabelo-barboterapia')
+  `).run();
+}
+
+initDb();
+
+export function getSiteSetting() {
+  return db.prepare("SELECT * FROM site_settings WHERE id = ?").get("main") as SiteSetting;
+}
+
+export function updateSiteSetting(isOpen: boolean, maintenanceMessage: string) {
+  db.prepare(`
+    UPDATE site_settings
+    SET is_open = ?, maintenance_message = ?, updated_at = ?
+    WHERE id = 'main'
+  `).run(isOpen ? 1 : 0, maintenanceMessage, nowIso());
+}
+
+export function getUserByEmail(email: string) {
+  return db.prepare(`
+    SELECT u.*, bp.bio, bp.specialty, bp.starts_at_hour, bp.ends_at_hour, bp.interval_minutes
+    FROM users u
+    LEFT JOIN barber_profiles bp ON bp.user_id = u.id
+    WHERE u.email = ?
+  `).get(email) as UserRecord | undefined;
+}
+
+export function getUserById(id: string) {
+  return db.prepare(`
+    SELECT u.*, bp.bio, bp.specialty, bp.starts_at_hour, bp.ends_at_hour, bp.interval_minutes
+    FROM users u
+    LEFT JOIN barber_profiles bp ON bp.user_id = u.id
+    WHERE u.id = ?
+  `).get(id) as UserRecord | undefined;
+}
+
+export function createUser(input: { name: string; email: string; phone: string; passwordHash: string; role?: string; birthDate?: string | null }) {
+  const id = createId("user");
+  const timestamp = nowIso();
+
+  db.prepare(`
+    INSERT INTO users (id, name, email, phone, birth_date, password_hash, role, is_active, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
+  `).run(id, input.name, input.email, input.phone, input.birthDate ?? null, input.passwordHash, input.role ?? "CUSTOMER", timestamp, timestamp);
+
+  return getUserById(id)!;
+}
+
+export function updateUserProfile(input: { userId: string; email: string; phone: string; birthDate?: string | null; avatarPath?: string | null }) {
+  db.prepare(`
+    UPDATE users
+    SET email = ?, phone = ?, birth_date = ?, avatar_path = COALESCE(?, avatar_path), updated_at = ?
+    WHERE id = ?
+  `).run(input.email, input.phone, input.birthDate ?? null, input.avatarPath ?? null, nowIso(), input.userId);
+
+  return getUserById(input.userId)!;
+}
+
+export function updateUserPasswordByEmail(input: { email: string; passwordHash: string }) {
+  db.prepare(`
+    UPDATE users
+    SET password_hash = ?, updated_at = ?
+    WHERE email = ?
+  `).run(input.passwordHash, nowIso(), input.email.toLowerCase());
+}
+
+export function listServices() {
+  return db.prepare(`
+    SELECT *
+    FROM services
+    WHERE is_active = 1
+    ORDER BY CASE id
+      WHEN 'service_tesoura' THEN 1
+      WHEN 'service_barba' THEN 2
+      WHEN 'service_corte_barba' THEN 3
+      WHEN 'service_cabelo_barba_terapia' THEN 4
+      WHEN 'service_maquina' THEN 5
+      WHEN 'service_depilacao' THEN 6
+      WHEN 'service_acabamento' THEN 7
+      WHEN 'service_alisante' THEN 8
+      WHEN 'service_pintura' THEN 9
+      WHEN 'service_progressiva' THEN 10
+      ELSE 99
+    END
+  `).all() as ServiceRecord[];
+}
+
+export function getServiceById(id: string) {
+  return db.prepare("SELECT * FROM services WHERE id = ?").get(id) as ServiceRecord | undefined;
+}
+
+export function listAllServices() {
+  return db.prepare("SELECT * FROM services ORDER BY name ASC").all() as ServiceRecord[];
+}
+
+export function updateServicePrice(input: { serviceId: string; priceInCents: number }) {
+  db.prepare(`
+    UPDATE services
+    SET price_in_cents = ?
+    WHERE id = ?
+  `).run(input.priceInCents, input.serviceId);
+}
+
+export function listBarbers() {
+  return db.prepare(`
+    SELECT u.*, bp.bio, bp.specialty, bp.starts_at_hour, bp.ends_at_hour, bp.interval_minutes
+    FROM users u
+    LEFT JOIN barber_profiles bp ON bp.user_id = u.id
+    WHERE u.role IN ('ADMIN', 'BARBER') AND u.is_active = 1
+    ORDER BY u.name ASC
+  `).all() as UserRecord[];
+}
+
+export function getPrimaryBarber() {
+  return (
+    listBarbers().find((barber) => barber.id === "user_barber" || barber.email === "barbeiro@dommus.com") ??
+    listBarbers().find((barber) => barber.name.toLowerCase() === "gabriel rodrigues") ??
+    listBarbers().find((barber) => barber.name.toLowerCase().includes("gabriel")) ??
+    listBarbers()[0]
+  );
+}
+
+export function listUserAppointments(userId: string) {
+  return db.prepare(`
+    SELECT a.*, COALESCE(a.service_summary, s.name) as service_name, b.name as barber_name
+    FROM appointments a
+    JOIN services s ON s.id = a.service_id
+    JOIN users b ON b.id = a.barber_id
+    WHERE a.customer_id = ?
+    ORDER BY a.scheduled_at ASC
+  `).all(userId) as AppointmentRecord[];
+}
+
+export function listAppointmentsByBarberOnDate(barberId: string, startIso: string, endIso: string) {
+  return db.prepare(`
+    SELECT *
+    FROM appointments
+    WHERE barber_id = ?
+      AND scheduled_at >= ?
+      AND scheduled_at <= ?
+      AND status IN ('PENDING_PAYMENT', 'CONFIRMED')
+  `).all(barberId, startIso, endIso) as AppointmentRecord[];
+}
+
+export function listBlockedSlotsByBarberOnDate(barberId: string, startIso: string, endIso: string) {
+  return db.prepare(`
+    SELECT *
+    FROM blocked_slots
+    WHERE barber_id = ?
+      AND starts_at <= ?
+      AND ends_at >= ?
+  `).all(barberId, endIso, startIso) as BlockedSlotRecord[];
+}
+
+export function createAppointment(input: {
+  protocolCode: string;
+  customerId: string;
+  barberId: string;
+  serviceId: string;
+  serviceSummary?: string;
+  scheduledAt: string;
+  endAt: string;
+  totalPriceInCents: number;
+  depositInCents: number;
+  notes: string;
+}) {
+  const id = createId("appointment");
+  db.prepare(`
+    INSERT INTO appointments (
+      id, protocol_code, customer_id, barber_id, service_id, scheduled_at, end_at,
+      total_price_in_cents, deposit_in_cents, status, deposit_status, notes, created_at, service_summary
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING_PAYMENT', 'PENDING', ?, ?, ?)
+  `).run(
+    id,
+    input.protocolCode,
+    input.customerId,
+    input.barberId,
+    input.serviceId,
+    input.scheduledAt,
+    input.endAt,
+    input.totalPriceInCents,
+    input.depositInCents,
+    input.notes,
+    nowIso(),
+    input.serviceSummary ?? null,
+  );
+
+  return id;
+}
+
+export function getAppointmentById(id: string) {
+  return db.prepare("SELECT * FROM appointments WHERE id = ?").get(id) as AppointmentRecord | undefined;
+}
+
+export function markAppointmentPaid(id: string) {
+  db.prepare(`
+    UPDATE appointments
+    SET status = 'CONFIRMED', deposit_status = 'PAID'
+    WHERE id = ?
+  `).run(id);
+
+  const insertReminder = db.prepare(`
+    INSERT INTO reminder_logs (id, appointment_id, type, sent_at, channel)
+    VALUES (?, ?, ?, ?, ?)
+  `);
+  insertReminder.run(createId("reminder"), id, "DAY_START", null, "WhatsApp/SMS pendente de integração");
+  insertReminder.run(createId("reminder"), id, "ONE_HOUR_BEFORE", null, "WhatsApp/SMS pendente de integração");
+}
+
+export function createLead(input: { userId?: string; serviceId?: string; lastStep: string; isConverted?: boolean }) {
+  const timestamp = nowIso();
+  db.prepare(`
+    INSERT INTO abandoned_leads (id, user_id, service_id, started_at, last_step, is_converted, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(createId("lead"), input.userId ?? null, input.serviceId ?? null, timestamp, input.lastStep, input.isConverted ? 1 : 0, timestamp);
+}
+
+export function convertLeadsForUser(userId: string) {
+  db.prepare(`
+    UPDATE abandoned_leads
+    SET is_converted = 1, last_step = 'Convertido em agendamento confirmado'
+    WHERE user_id = ? AND is_converted = 0
+  `).run(userId);
+}
+
+export function listAppointmentsForAdmin(barberIds?: string[]) {
+  if (barberIds?.length) {
+    const placeholders = barberIds.map(() => "?").join(", ");
+    return db.prepare(`
+      SELECT a.*, c.name as customer_name, c.email as customer_email, c.phone as customer_phone, c.avatar_path as customer_avatar_path, b.name as barber_name, COALESCE(a.service_summary, s.name) as service_name
+      FROM appointments a
+      JOIN users c ON c.id = a.customer_id
+      JOIN users b ON b.id = a.barber_id
+      JOIN services s ON s.id = a.service_id
+      WHERE a.barber_id IN (${placeholders})
+      ORDER BY a.scheduled_at ASC
+    `).all(...barberIds) as AppointmentRecord[];
+  }
+
+  return db.prepare(`
+    SELECT a.*, c.name as customer_name, c.email as customer_email, c.phone as customer_phone, c.avatar_path as customer_avatar_path, b.name as barber_name, COALESCE(a.service_summary, s.name) as service_name
+    FROM appointments a
+    JOIN users c ON c.id = a.customer_id
+    JOIN users b ON b.id = a.barber_id
+    JOIN services s ON s.id = a.service_id
+    ORDER BY a.scheduled_at ASC
+  `).all() as AppointmentRecord[];
+}
+
+export function listBlockedSlots(barberIds?: string[]) {
+  if (barberIds?.length) {
+    const placeholders = barberIds.map(() => "?").join(", ");
+    return db.prepare(`
+      SELECT bs.*, u.name as barber_name
+      FROM blocked_slots bs
+      JOIN users u ON u.id = bs.barber_id
+      WHERE bs.barber_id IN (${placeholders})
+      ORDER BY bs.starts_at ASC
+    `).all(...barberIds) as BlockedSlotRecord[];
+  }
+
+  return db.prepare(`
+    SELECT bs.*, u.name as barber_name
+    FROM blocked_slots bs
+    JOIN users u ON u.id = bs.barber_id
+    ORDER BY bs.starts_at ASC
+  `).all() as BlockedSlotRecord[];
+}
+
+export function createBlockedSlot(input: { barberId: string; startsAt: string; endsAt: string; reason: string }) {
+  db.prepare(`
+    INSERT INTO blocked_slots (id, barber_id, starts_at, ends_at, reason, created_at)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).run(createId("block"), input.barberId, input.startsAt, input.endsAt, input.reason, nowIso());
+}
+
+export function deleteBlockedSlotById(id: string) {
+  db.prepare(`
+    DELETE FROM blocked_slots
+    WHERE id = ?
+  `).run(id);
+}
+
+export function ensureBlockedDay(barberId: string, dateIso: string, reason: string) {
+  const startsAt = toBrazilDateTimeIso(dateIso, "00:00:00");
+  const endsAt = toBrazilDateTimeIso(dateIso, "23:59:59");
+
+  const existing = db.prepare(`
+    SELECT id
+    FROM blocked_slots
+    WHERE barber_id = ?
+      AND starts_at = ?
+      AND ends_at = ?
+    LIMIT 1
+  `).get(barberId, startsAt, endsAt) as { id: string } | undefined;
+
+  if (existing) {
+    return existing.id;
+  }
+
+  createBlockedSlot({
+    barberId,
+    startsAt,
+    endsAt,
+    reason,
+  });
+
+  return null;
+}
+
+export function listCustomers(search?: string) {
+  if (search) {
+    const like = `%${search}%`;
+    return db.prepare(`
+      SELECT *
+      FROM users
+      WHERE role = 'CUSTOMER' AND (name LIKE ? OR phone LIKE ?)
+      ORDER BY created_at DESC
+    `).all(like, like) as UserRecord[];
+  }
+
+  return db.prepare(`
+    SELECT *
+    FROM users
+    WHERE role = 'CUSTOMER'
+    ORDER BY created_at DESC
+  `).all() as UserRecord[];
+}
+
+export function listBirthdayCustomersOnDate(dateIso: string) {
+  const match = dateIso.match(/^\d{4}-(\d{2})-(\d{2})$/);
+  if (!match) return [] as UserRecord[];
+
+  const [, month, day] = match;
+  return db.prepare(`
+    SELECT *
+    FROM users
+    WHERE role = 'CUSTOMER'
+      AND birth_date IS NOT NULL
+      AND substr(birth_date, 6, 2) = ?
+      AND substr(birth_date, 9, 2) = ?
+    ORDER BY name ASC
+  `).all(month, day) as UserRecord[];
+}
+
+export function countPendingAppointments(barberIds?: string[]) {
+  if (barberIds?.length) {
+    const placeholders = barberIds.map(() => "?").join(", ");
+    return (db.prepare(`
+      SELECT COUNT(*) as count
+      FROM appointments
+      WHERE status = 'PENDING_PAYMENT' AND barber_id IN (${placeholders})
+    `).get(...barberIds) as { count: number }).count;
+  }
+
+  return (db.prepare(`
+    SELECT COUNT(*) as count
+    FROM appointments
+    WHERE status = 'PENDING_PAYMENT'
+  `).get() as { count: number }).count;
+}
+
+export function listAllUsers() {
+  return db.prepare("SELECT * FROM users ORDER BY created_at DESC").all() as UserRecord[];
+}
+
+export function updateUserRoleAndStatus(input: { userId: string; role: string; isActive: boolean }) {
+  db.prepare(`
+    UPDATE users
+    SET role = ?, is_active = ?, updated_at = ?
+    WHERE id = ?
+  `).run(input.role, input.isActive ? 1 : 0, nowIso(), input.userId);
+}
+
+export function listPendingAppointmentsForOwner() {
+  return db.prepare(`
+    SELECT a.*, c.name as customer_name, c.email as customer_email, c.phone as customer_phone, b.name as barber_name, COALESCE(a.service_summary, s.name) as service_name
+    FROM appointments a
+    JOIN users c ON c.id = a.customer_id
+    JOIN users b ON b.id = a.barber_id
+    JOIN services s ON s.id = a.service_id
+    WHERE a.deposit_status = 'PENDING'
+    ORDER BY a.created_at DESC
+  `).all() as AppointmentRecord[];
+}
+
+export function listLeads() {
+  return db.prepare(`
+    SELECT l.*, u.name as user_name, u.email as user_email, u.phone as user_phone, s.name as service_name
+    FROM abandoned_leads l
+    LEFT JOIN users u ON u.id = l.user_id
+    LEFT JOIN services s ON s.id = l.service_id
+    ORDER BY l.created_at DESC
+  `).all() as LeadRecord[];
+}
+
+export function cancelAppointmentById(id: string) {
+  db.prepare(`
+    UPDATE appointments
+    SET status = 'CANCELED'
+    WHERE id = ?
+  `).run(id);
+}
+
+
+
+
+
+

@@ -1,0 +1,8 @@
+<svg width="1200" height="800" viewBox="0 0 1200 800" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="800" fill="#120E0B"/>
+  <circle cx="600" cy="360" r="220" fill="#D2B27C"/>
+  <path d="M470 285C520 232 580 205 650 210C720 215 779 250 820 320" stroke="#3A2C1D" stroke-width="32" stroke-linecap="round"/>
+  <path d="M450 430C520 480 582 505 640 505C698 505 756 480 812 430" stroke="#3A2C1D" stroke-width="24" stroke-linecap="round"/>
+  <circle cx="950" cy="180" r="120" fill="#F3D39A" fill-opacity="0.2"/>
+  <text x="90" y="710" fill="#F8F1E3" font-size="68" font-family="Georgia, serif">Pintura de cabelo</text>
+</svg>
