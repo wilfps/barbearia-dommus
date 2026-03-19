@@ -80,6 +80,7 @@ export function AdminManualBooking({
   const dateSectionRef = useRef<HTMLDivElement | null>(null);
   const slotsSectionRef = useRef<HTMLDivElement | null>(null);
   const submitButtonRef = useRef<HTMLButtonElement | null>(null);
+  const datePickerRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     setFormState((current) => ({
@@ -110,6 +111,13 @@ export function AdminManualBooking({
     () => services.find((service) => service.id === formState.serviceId) ?? null,
     [formState.serviceId, services],
   );
+
+  const formattedDateValue = useMemo(() => {
+    if (!formState.date) return "";
+    const [year, month, day] = formState.date.split("-");
+    if (!year || !month || !day) return formState.date;
+    return `${day}/${month}/${year}`;
+  }, [formState.date]);
 
   const updateSearchParams = useCallback(
     (serviceId: string, date: string) => {
@@ -174,6 +182,18 @@ export function AdminManualBooking({
     if (formState.serviceId) {
       await refreshAvailability(formState.serviceId, date);
     }
+  };
+
+  const openDatePicker = () => {
+    const picker = datePickerRef.current;
+    if (!picker) return;
+
+    if (typeof picker.showPicker === "function") {
+      picker.showPicker();
+      return;
+    }
+
+    picker.click();
   };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -348,12 +368,24 @@ export function AdminManualBooking({
               })}
             </div>
 
-            <input
-              className="h-14 w-full rounded-[1.1rem] border border-white/10 bg-[#1f1b18] px-5 text-base text-white outline-none transition focus:border-[#d6bf74]"
-              value={formState.date}
-              onChange={(event) => void handleDateChange(event.target.value)}
-              placeholder="dd/mm/aaaa"
-            />
+            <div className="relative">
+              <button
+                type="button"
+                onClick={openDatePicker}
+                className="h-14 w-full rounded-[1.1rem] border border-white/10 bg-[#1f1b18] px-5 text-left text-base text-white outline-none transition hover:border-[#d6bf74] focus:border-[#d6bf74]"
+              >
+                {formattedDateValue || "Escolha a data"}
+              </button>
+              <input
+                ref={datePickerRef}
+                type="date"
+                value={formState.date}
+                onChange={(event) => void handleDateChange(event.target.value)}
+                className="pointer-events-none absolute inset-0 opacity-0"
+                tabIndex={-1}
+                aria-hidden="true"
+              />
+            </div>
           </div>
 
           <button

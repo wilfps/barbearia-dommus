@@ -38,6 +38,7 @@ export function ServiceSelectionForm({
   const [selectedDateValue, setSelectedDateValue] = useState(initialDate);
   const [dateDisplayValue, setDateDisplayValue] = useState(format(parse(initialDate, "yyyy-MM-dd", new Date()), "dd/MM/yyyy"));
   const dateSectionRef = useRef<HTMLDivElement | null>(null);
+  const datePickerRef = useRef<HTMLInputElement | null>(null);
 
   const selectedServices = useMemo(
     () => services.filter((service) => selectedIds.includes(service.id)),
@@ -107,15 +108,6 @@ export function ServiceSelectionForm({
     }
   }
 
-  function updateDateFromDisplay(displayDate: string) {
-    setDateDisplayValue(displayDate);
-    const parsed = parse(displayDate, "dd/MM/yyyy", new Date());
-    if (isValid(parsed)) {
-      const isoDate = format(parsed, "yyyy-MM-dd");
-      setSelectedDateValue(isoDate);
-    }
-  }
-
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -128,6 +120,18 @@ export function ServiceSelectionForm({
     }
 
     window.location.href = `/cliente?${params.toString()}#horarios`;
+  }
+
+  function openDatePicker() {
+    const picker = datePickerRef.current;
+    if (!picker) return;
+
+    if (typeof picker.showPicker === "function") {
+      picker.showPicker();
+      return;
+    }
+
+    picker.click();
   }
 
   return (
@@ -217,14 +221,24 @@ export function ServiceSelectionForm({
               );
             })}
           </div>
-          <input
-            type="text"
-            inputMode="numeric"
-            placeholder="dd/mm/aaaa"
-            value={dateDisplayValue}
-            onChange={(event) => updateDateFromDisplay(event.target.value)}
-            className="mt-3 w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-stone-100"
-          />
+          <div className="relative mt-3">
+            <button
+              type="button"
+              onClick={openDatePicker}
+              className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-left text-stone-100 transition hover:border-amber-200/35"
+            >
+              {dateDisplayValue || "Escolha a data"}
+            </button>
+            <input
+              ref={datePickerRef}
+              type="date"
+              value={selectedDateValue}
+              onChange={(event) => updateDateFromIso(event.target.value)}
+              className="pointer-events-none absolute inset-0 opacity-0"
+              tabIndex={-1}
+              aria-hidden="true"
+            />
+          </div>
           <p className="mt-2 text-xs text-stone-400">
             Para outros dias, use o calendário acima.
           </p>
