@@ -1,4 +1,5 @@
 const SAO_PAULO_OFFSET = "-03:00";
+const SAO_PAULO_TIME_ZONE = "America/Sao_Paulo";
 
 function normalizeTime(value: string) {
   return value.length === 5 ? `${value}:00` : value;
@@ -17,4 +18,22 @@ export function getBrazilDayRange(dateIso: string) {
     startIso: toBrazilDateTimeIso(dateIso, "00:00:00"),
     endIso: toBrazilDateTimeIso(dateIso, "23:59:59"),
   };
+}
+
+export function formatBrazilTime(date: Date | string) {
+  return new Intl.DateTimeFormat("pt-BR", {
+    timeZone: SAO_PAULO_TIME_ZONE,
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(new Date(date));
+}
+
+export function formatBrazilDateInput(date: Date | string) {
+  return new Intl.DateTimeFormat("sv-SE", {
+    timeZone: SAO_PAULO_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(date));
 }

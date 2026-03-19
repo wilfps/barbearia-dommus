@@ -4,7 +4,7 @@ import { AppShell } from "@/components/shell";
 import { ServiceSelectionForm } from "@/components/service-selection-form";
 import { getBookingDurationMinutes, listScheduleSlots } from "@/lib/booking";
 import { requireRoles } from "@/lib/auth";
-import { getBrazilDayRange, toBrazilDateObject } from "@/lib/brazil-time";
+import { formatBrazilDateInput, formatBrazilTime, getBrazilDayRange, toBrazilDateObject } from "@/lib/brazil-time";
 import {
   ensureBlockedDay,
   getPrimaryBarber,
@@ -70,8 +70,8 @@ export default async function ClientePage({ searchParams }: { searchParams: Sear
   const serviceSummary = selectedServices.map((service) => service.name).join(" + ");
   const allBlockedSlots = selectedBarber ? listBlockedSlotsByBarberOnDate(selectedBarber.id, new Date().toISOString(), new Date("2099-12-31T23:59:59").toISOString()) : [];
   const blockedFullDayDates = allBlockedSlots
-    .filter((slot) => format(new Date(slot.starts_at), "HH:mm") === "00:00" && format(new Date(slot.ends_at), "HH:mm") === "23:59")
-    .map((slot) => format(new Date(slot.starts_at), "yyyy-MM-dd"));
+    .filter((slot) => formatBrazilTime(slot.starts_at) === "00:00" && formatBrazilTime(slot.ends_at) === "23:59")
+    .map((slot) => formatBrazilDateInput(slot.starts_at));
   const isSelectedDateBlocked = blockedFullDayDates.includes(selectedDate);
 
   const selectedDayRange = getBrazilDayRange(selectedDate);
@@ -183,7 +183,7 @@ export default async function ClientePage({ searchParams }: { searchParams: Sear
                             className="peer sr-only"
                             type="radio"
                             name="time"
-                            value={format(slot.time, "HH:mm")}
+                            value={formatBrazilTime(slot.time)}
                             required
                             disabled={slot.status !== "available"}
                           />
@@ -197,7 +197,7 @@ export default async function ClientePage({ searchParams }: { searchParams: Sear
                             }`}
                           >
                             <div className="flex items-center justify-center gap-2">
-                              <span>{format(slot.time, "HH:mm")}</span>
+                              <span>{formatBrazilTime(slot.time)}</span>
                               {slot.status === "booked" || slot.status === "blocked" ? <X className="size-4 text-red-300" /> : null}
                             </div>
                             {slot.status === "booked" ? (

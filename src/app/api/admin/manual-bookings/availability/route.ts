@@ -1,4 +1,3 @@
-import { format } from "date-fns";
 import { getBookingDurationMinutes, listScheduleSlots } from "@/lib/booking";
 import { requireRoles } from "@/lib/auth";
 import {
@@ -7,7 +6,7 @@ import {
   listAppointmentsByBarberOnDate,
   listBlockedSlotsByBarberOnDate,
 } from "@/lib/db";
-import { getBrazilDayRange, toBrazilDateObject } from "@/lib/brazil-time";
+import { formatBrazilTime, getBrazilDayRange, toBrazilDateObject } from "@/lib/brazil-time";
 
 export async function GET(request: Request) {
   await requireRoles(["ADMIN", "BARBER", "OWNER"]);
@@ -27,8 +26,8 @@ export async function GET(request: Request) {
   const blockedSlots = listBlockedSlotsByBarberOnDate(barber.id, dayRange.startIso, dayRange.endIso);
   const isBlockedDay = blockedSlots.some(
     (slot) =>
-      format(new Date(slot.starts_at), "HH:mm") === "00:00" &&
-      format(new Date(slot.ends_at), "HH:mm") === "23:59",
+      formatBrazilTime(slot.starts_at) === "00:00" &&
+      formatBrazilTime(slot.ends_at) === "23:59",
   );
 
   const slots = listScheduleSlots({
@@ -41,7 +40,7 @@ export async function GET(request: Request) {
     appointments,
     blockedSlots,
   }).map((slot) => ({
-    time: format(slot.time, "HH:mm"),
+    time: formatBrazilTime(slot.time),
     status: slot.status,
   }));
 
