@@ -2,6 +2,7 @@
 import { redirect } from "next/navigation";
 import { isRedirectError } from "next/dist/client/components/redirect-error";
 import { BirthDateInput } from "@/components/birth-date-input";
+import { CheckoutScrollFocus } from "@/components/checkout-scroll-focus";
 import { AppShell } from "@/components/shell";
 import { StatCard } from "@/components/stat-card";
 import { requireRoles } from "@/lib/auth";
@@ -187,6 +188,7 @@ export default async function ClienteMinhaAreaPage({ searchParams }: { searchPar
           </section>
 
           <section id="checkout" className="glass rounded-[24px] p-4 sm:rounded-[32px] sm:p-6">
+            <CheckoutScrollFocus />
             <p className="text-xs uppercase tracking-[0.45em] text-amber-200/60">Check-out</p>
             <h2 className="mt-3 text-2xl text-amber-50 sm:text-3xl">Finalize seu pagamento</h2>
             <p className="mt-2 text-sm text-stone-300">
@@ -201,6 +203,7 @@ export default async function ClienteMinhaAreaPage({ searchParams }: { searchPar
                 return (
                 <div
                   key={appointment.id}
+                  data-appointment-id={appointment.id}
                   className={`rounded-[24px] border bg-black/15 p-5 ${
                     params.checkout === appointment.id
                       ? "border-amber-300/50 shadow-[0_0_24px_rgba(210,178,124,0.12)]"
