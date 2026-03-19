@@ -1,28 +1,110 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { BirthDateInput } from "@/components/birth-date-input";
 import { AppShell } from "@/components/shell";
 import { StatCard } from "@/components/stat-card";
 import { requireRoles } from "@/lib/auth";
-import { getSiteSetting, listUserAppointments } from "@/lib/db";
+import {
+  convertLeadsForUser,
+  getAppointmentByProtocolCode,
+  getSiteSetting,
+  listUserAppointments,
+  markAppointmentPaid,
+} from "@/lib/db";
 import { buildWhatsAppLink, formatBirthDate, formatDateTime, formatMoney } from "@/lib/format";
-import { getInfinitePayCheckoutConfig } from "@/lib/integrations/infinitepay";
+import { checkInfinitePayPayment, getInfinitePayCheckoutConfig } from "@/lib/integrations/infinitepay";
 import { buildPixCheckoutPayload, getPixIntegrationConfig } from "@/lib/integrations/pix";
 import { buildPixMessage, getWhatsAppIntegrationConfig } from "@/lib/integrations/whatsapp";
 
 type SearchParams = Promise<{
   checkout?: string;
+  payment?: string;
+  order_nsu?: string;
+  slug?: string;
+  transaction_nsu?: string;
+  capture_method?: string;
+  receipt_url?: string;
 }>;
+
+function PaymentNotice({ payment }: { payment?: string }) {
+  if (payment === "success") {
+    return (
+      <section className="rounded-[24px] border border-emerald-400/35 bg-emerald-400/10 p-4 text-emerald-50 sm:rounded-[28px] sm:p-5">
+        <p className="text-xs uppercase tracking-[0.35em] text-emerald-200/80">Pagamento confirmado</p>
+        <h2 className="mt-2 text-xl">Seu sinal foi reconhecido com sucesso</h2>
+        <p className="mt-2 text-sm text-emerald-100/90">
+          A reserva foi confirmada e o protocolo já está pronto para identificação junto ao barbeiro.
+        </p>
+      </section>
+    );
+  }
+
+  if (payment === "pending") {
+    return (
+      <section className="rounded-[24px] border border-amber-300/35 bg-amber-300/10 p-4 text-amber-50 sm:rounded-[28px] sm:p-5">
+        <p className="text-xs uppercase tracking-[0.35em] text-amber-200/80">Pagamento em análise</p>
+        <h2 className="mt-2 text-xl">A InfinitePay ainda não confirmou esse pagamento</h2>
+        <p className="mt-2 text-sm text-stone-200">
+          Se você já pagou, aguarde alguns instantes e atualize a página. Se preferir, finalize o pagamento novamente pelo
+          check-out.
+        </p>
+      </section>
+    );
+  }
+
+  if (payment === "checkout-error" || payment === "checkout-unavailable") {
+    return (
+      <section className="rounded-[24px] border border-red-500/35 bg-red-500/10 p-4 text-red-50 sm:rounded-[28px] sm:p-5">
+        <p className="text-xs uppercase tracking-[0.35em] text-red-200/80">Checkout indisponível</p>
+        <h2 className="mt-2 text-xl">Não conseguimos abrir o pagamento agora</h2>
+        <p className="mt-2 text-sm text-stone-200">
+          Tente novamente em alguns instantes. Se continuar falhando, ajuste a configuração do checkout no painel admin.
+        </p>
+      </section>
+    );
+  }
+
+  return null;
+}
 
 export default async function ClienteMinhaAreaPage({ searchParams }: { searchParams: SearchParams }) {
   const user = await requireRoles(["CUSTOMER", "OWNER"]);
   const params = await searchParams;
+  const site = getSiteSetting();
+  const checkoutConfig = getInfinitePayCheckoutConfig(site);
+
+  if (params.order_nsu && params.slug && params.transaction_nsu && checkoutConfig.handleConfigured) {
+    try {
+      const confirmation = await checkInfinitePayPayment({
+        handle: checkoutConfig.handle,
+        orderNsu: params.order_nsu,
+        slug: params.slug,
+        transactionNsu: params.transaction_nsu,
+      });
+
+      if (confirmation.paid) {
+        const appointment = getAppointmentByProtocolCode(params.order_nsu);
+        if (appointment?.customer_id === user.id) {
+          const updated = markAppointmentPaid(appointment.id);
+          if (updated) {
+            convertLeadsForUser(user.id);
+          }
+        }
+
+        redirect("/cliente/minha-area?payment=success#protocolos");
+      }
+
+      redirect("/cliente/minha-area?payment=pending#checkout");
+    } catch {
+      redirect("/cliente/minha-area?payment=checkout-error#checkout");
+    }
+  }
+
   const appointments = listUserAppointments(user.id).filter((appointment) => appointment.status !== "CANCELED");
   const pendingAppointments = appointments.filter((appointment) => appointment.deposit_status === "PENDING");
   const confirmedAppointments = appointments.filter((appointment) => appointment.status === "CONFIRMED");
   const avatarSrc = user.avatar_path ? `${user.avatar_path}?v=${encodeURIComponent(user.updated_at)}` : null;
   const needsBirthDate = !user.birth_date;
-  const site = getSiteSetting();
-  const checkoutConfig = getInfinitePayCheckoutConfig(site);
   const whatsappConfig = getWhatsAppIntegrationConfig();
   const pixConfig = getPixIntegrationConfig();
 
@@ -51,6 +133,8 @@ export default async function ClienteMinhaAreaPage({ searchParams }: { searchPar
             </p>
           </section>
         ) : null}
+
+        <PaymentNotice payment={params.payment} />
 
         <div className="grid gap-6 xl:grid-cols-[0.72fr_1.28fr]">
           <section className="glass rounded-[24px] p-4 sm:rounded-[32px] sm:p-6">
@@ -102,7 +186,7 @@ export default async function ClienteMinhaAreaPage({ searchParams }: { searchPar
             <p className="text-xs uppercase tracking-[0.45em] text-amber-200/60">Check-out</p>
             <h2 className="mt-3 text-2xl text-amber-50 sm:text-3xl">Finalize seu pagamento</h2>
             <p className="mt-2 text-sm text-stone-300">
-              Checkout online: {checkoutConfig.handleConfigured ? "estrutura preparada no painel admin" : "aguardando configuração do admin"}.
+              Checkout online: {checkoutConfig.handleConfigured ? "ativo para gerar link real" : "aguardando configuração do admin"}.
               {" "}PIX: {pixConfig.tokenConfigured && pixConfig.pixKeyConfigured ? "estrutura pronta para integração real" : "modo preparação"}.
               {" "}WhatsApp: {whatsappConfig.tokenConfigured && whatsappConfig.phoneIdConfigured ? "pronto para envio automático" : "link direto por enquanto"}.
             </p>
@@ -145,7 +229,7 @@ export default async function ClienteMinhaAreaPage({ searchParams }: { searchPar
                     })()}
                     <form action="/api/bookings/pay" method="post">
                       <input type="hidden" name="appointmentId" value={appointment.id} />
-                      <input type="hidden" name="returnTo" value="/cliente/minha-area#protocolos" />
+                      <input type="hidden" name="returnTo" value="/cliente/minha-area#checkout" />
                       <button type="submit" className="rounded-2xl bg-amber-300 px-4 py-2 font-semibold text-stone-950 transition hover:bg-amber-200">
                         Finalizar pagamento
                       </button>

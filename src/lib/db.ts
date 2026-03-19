@@ -1,4 +1,4 @@
-import fs from "node:fs";
+﻿import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import Database from "better-sqlite3";
@@ -231,7 +231,7 @@ function initDb() {
 
   db.prepare(
     "INSERT OR IGNORE INTO site_settings (id, site_name, is_open, maintenance_message, updated_at) VALUES (?, ?, ?, ?, ?)",
-  ).run("main", "Dommus Barbearia", 1, "Sistema temporariamente indisponível. Entre em contato com a Dommus.", nowIso());
+  ).run("main", "Dommus Barbearia", 1, "Sistema temporariamente indisponÃ­vel. Entre em contato com a Dommus.", nowIso());
 
   const insertService = db.prepare(`
     INSERT OR IGNORE INTO services (id, name, slug, description, price_in_cents, duration_minutes, image_path, is_active)
@@ -244,11 +244,11 @@ function initDb() {
     ["service_corte_barba", "Cabelo e barba", "cabelo-barba", "Pacote completo de cabelo e barba.", 7500, 60, "/services/corte-barba.jpg"],
     ["service_cabelo_barba_terapia", "Cabelo e Barboterapia", "cabelo-barboterapia", "Pacote completo de cabelo e barboterapia premium.", 11000, 60, "/services/cabelo-barboterapia.jpg"],
     ["service_barba", "Barboterapia", "barboterapia", "Desenho e alinhamento com toalha quente e acabamento premium.", 3000, 30, "/services/barboterapia.jpg"],
-    ["service_depilacao", "Depilação com cera", "depilacao-cera", "Depilação rápida com acabamento limpo.", 2000, 10, "/services/depilacao-cera.jpg"],
-    ["service_acabamento", "Acabamento", "acabamento", "Acabamento rápido para deixar tudo alinhado.", 1500, 10, "/services/acabamento.jpg"],
-    ["service_alisante", "Alisante", "alisante", "Alisamento rápido com acabamento profissional.", 6500, 30, "/services/pintura.jpg"],
-    ["service_pintura", "Pigmentação", "piguimentacao", "Pigmentação com acabamento profissional.", 9500, 60, "/services/piguimentacao.jpg"],
-    ["service_progressiva", "Progressiva", "progressiva", "Progressiva completa com duração maior.", 12000, 60, "/services/pintura.jpg"],
+    ["service_depilacao", "DepilaÃ§Ã£o com cera", "depilacao-cera", "DepilaÃ§Ã£o rÃ¡pida com acabamento limpo.", 2000, 10, "/services/depilacao-cera.jpg"],
+    ["service_acabamento", "Acabamento", "acabamento", "Acabamento rÃ¡pido para deixar tudo alinhado.", 1500, 10, "/services/acabamento.jpg"],
+    ["service_alisante", "Alisante", "alisante", "Alisamento rÃ¡pido com acabamento profissional.", 6500, 30, "/services/pintura.jpg"],
+    ["service_pintura", "PigmentaÃ§Ã£o", "piguimentacao", "PigmentaÃ§Ã£o com acabamento profissional.", 9500, 60, "/services/piguimentacao.jpg"],
+    ["service_progressiva", "Progressiva", "progressiva", "Progressiva completa com duraÃ§Ã£o maior.", 12000, 60, "/services/pintura.jpg"],
   ].forEach(([id, name, slug, description, price_in_cents, duration_minutes, image_path]) => {
     insertService.run({ id, name, slug, description, price_in_cents, duration_minutes, image_path });
   });
@@ -300,8 +300,8 @@ function initDb() {
     `).run(
       "profile_barber",
       "user_barber",
-      "Especialista em cortes clássicos e barba desenhada.",
-      "Navalha e degradê",
+      "Especialista em cortes clÃ¡ssicos e barba desenhada.",
+      "Navalha e degradÃª",
       9,
       20,
       30,
@@ -341,7 +341,7 @@ function initDb() {
       "user_customer",
       "service_corte_barba",
       createdAt,
-      "Escolheu o serviço, mas não concluiu o pagamento",
+      "Escolheu o serviÃ§o, mas nÃ£o concluiu o pagamento",
       0,
       createdAt,
     );
@@ -373,7 +373,7 @@ function initDb() {
       WHEN id = 'service_corte_barba' THEN 'Cabelo e barba'
       WHEN id = 'service_cabelo_barba_terapia' THEN 'Cabelo e Barboterapia'
       WHEN id = 'service_barba' THEN 'Barboterapia'
-      WHEN id = 'service_pintura' THEN 'Pigmentação'
+      WHEN id = 'service_pintura' THEN 'PigmentaÃ§Ã£o'
       ELSE name
     END,
     slug = CASE
@@ -391,7 +391,7 @@ function initDb() {
       WHEN id = 'service_corte_barba' THEN 'Pacote completo de cabelo e barba.'
       WHEN id = 'service_cabelo_barba_terapia' THEN 'Pacote completo de cabelo e barboterapia premium.'
       WHEN id = 'service_barba' THEN 'Barboterapia com toalha quente e acabamento premium.'
-      WHEN id = 'service_pintura' THEN 'Pigmentação com acabamento profissional.'
+      WHEN id = 'service_pintura' THEN 'PigmentaÃ§Ã£o com acabamento profissional.'
       ELSE description
     END,
     duration_minutes = CASE
@@ -638,7 +638,17 @@ export function getAppointmentById(id: string) {
   return db.prepare("SELECT * FROM appointments WHERE id = ?").get(id) as AppointmentRecord | undefined;
 }
 
+export function getAppointmentByProtocolCode(protocolCode: string) {
+  return db.prepare("SELECT * FROM appointments WHERE protocol_code = ?").get(protocolCode) as AppointmentRecord | undefined;
+}
+
 export function markAppointmentPaid(id: string) {
+  const current = getAppointmentById(id);
+
+  if (!current || current.deposit_status === "PAID") {
+    return false;
+  }
+
   db.prepare(`
     UPDATE appointments
     SET status = 'CONFIRMED', deposit_status = 'PAID'
@@ -651,6 +661,8 @@ export function markAppointmentPaid(id: string) {
   `);
   insertReminder.run(createId("reminder"), id, "DAY_START", null, "WhatsApp/SMS pendente de integração");
   insertReminder.run(createId("reminder"), id, "ONE_HOUR_BEFORE", null, "WhatsApp/SMS pendente de integração");
+
+  return true;
 }
 
 export function createLead(input: { userId?: string; serviceId?: string; lastStep: string; isConverted?: boolean }) {
@@ -847,6 +859,7 @@ export function cancelAppointmentById(id: string) {
     WHERE id = ?
   `).run(id);
 }
+
 
 
 
