@@ -3,7 +3,7 @@
 import { format, isValid, parse } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { X } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ServiceCard } from "@/components/service-card";
 import { getBookingDurationMinutes } from "@/lib/booking";
@@ -37,6 +37,7 @@ export function ServiceSelectionForm({
   const [selectedIds, setSelectedIds] = useState<string[]>(initialSelectedIds);
   const [selectedDateValue, setSelectedDateValue] = useState(initialDate);
   const [dateDisplayValue, setDateDisplayValue] = useState(format(parse(initialDate, "yyyy-MM-dd", new Date()), "dd/MM/yyyy"));
+  const dateSectionRef = useRef<HTMLDivElement | null>(null);
 
   const selectedServices = useMemo(
     () => services.filter((service) => selectedIds.includes(service.id)),
@@ -54,6 +55,18 @@ export function ServiceSelectionForm({
   const totalDurationMinutes = getBookingDurationMinutes(selectedServices);
   const serviceSummary = selectedServices.map((service) => service.name).join(" + ");
   const isSelectedDateBlocked = blockedFullDayDates.includes(selectedDateValue);
+
+  useEffect(() => {
+    if (!selectedIds.length) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      dateSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 120);
+
+    return () => window.clearTimeout(timer);
+  }, [selectedIds.length]);
 
   function handleToggle(id: string, checked: boolean) {
     setSelectedIds((current) => {
@@ -166,7 +179,7 @@ export function ServiceSelectionForm({
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div ref={dateSectionRef} className="grid gap-4 md:grid-cols-2">
         <div className="rounded-[22px] border border-white/10 bg-black/15 p-4 sm:rounded-[28px] sm:p-5">
           <label className="block text-sm text-stone-300">Barbeiro</label>
           <div className="mt-3 rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-stone-100">

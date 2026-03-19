@@ -1,9 +1,19 @@
-import { format } from "date-fns";
+﻿import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import Link from "next/link";
 import { AppShell } from "@/components/shell";
 import { AdminManualBooking } from "@/components/admin-manual-booking";
+import { getBookingDurationMinutes, listScheduleSlots } from "@/lib/booking";
 import { requireRoles } from "@/lib/auth";
-import { getPrimaryBarber, listServices } from "@/lib/db";
+import { formatBrazilTime, getBrazilDayRange, toBrazilDateObject } from "@/lib/brazil-time";
+import {
+  getPrimaryBarber,
+  getServiceById,
+  listAppointmentsByBarberOnDate,
+  listBlockedSlotsByBarberOnDate,
+  listServices,
+} from "@/lib/db";
+import { getQuickWeekDates } from "@/lib/quick-dates";
 
 type SearchParams = Promise<{
   success?: string;
@@ -12,12 +22,59 @@ type SearchParams = Promise<{
   serviceId?: string;
 }>;
 
+function normalizeSelectedDate(value?: string) {
+  if (value && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return value;
+  }
+
+  return format(new Date(), "yyyy-MM-dd");
+}
+
 export default async function AdminManualBookingPage({ searchParams }: { searchParams: SearchParams }) {
   await requireRoles(["ADMIN", "BARBER", "OWNER"]);
   const params = await searchParams;
   const barber = getPrimaryBarber();
   const services = listServices();
-  const initialDate = params.date || format(new Date(), "yyyy-MM-dd");
+  const selectedDate = normalizeSelectedDate(params.date);
+  const selectedServiceId = params.serviceId ?? services[0]?.id ?? "";
+  const selectedService = getServiceById(selectedServiceId);
+  const quickDates = getQuickWeekDates(new Date()).map((date) => ({
+    value: date.iso,
+    label: format(date.date, "EEEE", { locale: ptBR }).toUpperCase(),
+    shortLabel: format(date.date, "dd/MM"),
+  }));
+
+  const dayRange = barber && selectedService ? getBrazilDayRange(selectedDate) : null;
+  const appointments = barber && dayRange
+    ? listAppointmentsByBarberOnDate(barber.id, dayRange.startIso, dayRange.endIso)
+    : [];
+  const blockedSlots = barber && dayRange
+    ? listBlockedSlotsByBarberOnDate(barber.id, dayRange.startIso, dayRange.endIso)
+    : [];
+
+  const slots = barber && selectedService
+    ? listScheduleSlots({
+        date: toBrazilDateObject(selectedDate, "00:00:00"),
+        barber,
+        service: {
+          ...selectedService,
+          duration_minutes: getBookingDurationMinutes([selectedService]),
+        },
+        appointments,
+        blockedSlots,
+      }).map((slot) => ({
+        time: formatBrazilTime(slot.time),
+        status: slot.status,
+        appointmentId: slot.appointmentId,
+        blockedSlotId: slot.blockedSlotId,
+      }))
+    : [];
+
+  const mappedServices = services.map((service) => ({
+    id: service.id,
+    name: service.name,
+    priceCents: service.price_in_cents,
+  }));
 
   return (
     <AppShell
@@ -35,12 +92,12 @@ export default async function AdminManualBookingPage({ searchParams }: { searchP
       }
     >
       <AdminManualBooking
-        services={services}
-        barberName={barber?.name || "Gabriel Rodrigues"}
-        initialDate={initialDate}
-        initialServiceId={params.serviceId}
-        success={params.success === "1"}
-        error={params.error}
+        barberId={barber?.id ?? ""}
+        services={mappedServices}
+        selectedServiceId={selectedServiceId}
+        selectedDate={selectedDate}
+        quickDates={quickDates}
+        slots={slots}
       />
     </AppShell>
   );

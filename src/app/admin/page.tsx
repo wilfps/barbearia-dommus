@@ -39,11 +39,22 @@ function getSelectedDateLabel(selectedDate: string) {
   return `${day} - ${weekDay}`;
 }
 
+function getMonthSummary(selectedDate: string) {
+  const date = new Date(`${selectedDate}T12:00:00`);
+  const monthName = format(date, "LLLL", { locale: ptBR }).toLowerCase();
+  const lastDay = Number(format(new Date(date.getFullYear(), date.getMonth() + 1, 0), "d"));
+  return {
+    monthName,
+    rangeLabel: `dia 1 - ${lastDay}`,
+  };
+}
+
 export default async function AdminPage({ searchParams }: { searchParams: SearchParams }) {
   await requireRoles(["ADMIN", "BARBER", "OWNER"]);
   const params = await searchParams;
   const selectedDate = normalizeDateInput(params.date);
   const selectedDateLabel = getSelectedDateLabel(selectedDate);
+  const monthSummary = getMonthSummary(selectedDate);
   const primaryBarber = getPrimaryBarber();
   const birthdayCustomers = listBirthdayCustomersOnDate(selectedDate);
   const whatsappConfig = getWhatsAppIntegrationConfig();
@@ -118,8 +129,9 @@ export default async function AdminPage({ searchParams }: { searchParams: Search
           </div>
 
           <div className="rounded-[22px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.03))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] sm:rounded-[28px] sm:p-5">
-            <p className="text-sm text-stone-400">Ganhos do mês</p>
+            <p className="text-sm text-stone-400">Ganhos de {monthSummary.monthName}</p>
             <p className="mt-3 text-3xl font-semibold text-amber-50">{formatMoney(totalReceivedMonth)}</p>
+            <p className="mt-2 text-xs uppercase tracking-[0.25em] text-amber-200/60">{monthSummary.rangeLabel}</p>
             <div className="mt-4 rounded-[18px] border border-white/10 bg-black/10 px-4 py-3 text-sm text-stone-200">
               Gabriel Rodrigues - {formatMoney(totalReceivedMonth)}
             </div>

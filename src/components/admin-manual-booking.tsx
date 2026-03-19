@@ -1,343 +1,488 @@
-"use client";
+﻿"use client";
 
-import { format, isValid, parse } from "date-fns";
-import { ptBR } from "date-fns/locale";
-import { X } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { getQuickWeekDates } from "@/lib/quick-dates";
-import { formatMoney } from "@/lib/format";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
-type ServiceItem = {
-  id: string;
-  name: string;
-  price_in_cents: number;
-  duration_minutes: number;
+type SlotStatus = "available" | "booked" | "blocked" | "past";
+
+type Slot = {
+  time: string;
+  status: SlotStatus;
+  appointmentId?: string;
+  blockedSlotId?: string;
 };
 
-type SlotState = {
+type QuickDate = {
+  label: string;
+  shortLabel: string;
+  value: string;
+};
+
+type Service = {
+  id: string;
+  name: string;
+  priceCents: number;
+};
+
+type ManualBookingProps = {
+  barberId: string;
+  services: Service[];
+  selectedServiceId: string;
+  selectedDate: string;
+  quickDates: QuickDate[];
+  slots: Slot[];
+};
+
+type FormState = {
+  customerName: string;
+  customerPhone: string;
+  serviceId: string;
+  date: string;
   time: string;
-  status: "available" | "booked" | "blocked" | "past";
-  appointmentId?: string | null;
-  blockedSlotId?: string | null;
+};
+
+const emptyState: FormState = {
+  customerName: "",
+  customerPhone: "",
+  serviceId: "",
+  date: "",
+  time: "",
 };
 
 export function AdminManualBooking({
+  barberId,
   services,
-  barberName,
-  initialDate,
-  initialServiceId,
-  success,
-  error,
-}: {
-  services: ServiceItem[];
-  barberName: string;
-  initialDate: string;
-  initialServiceId?: string;
-  success?: boolean;
-  error?: string;
-}) {
-  const [customerName, setCustomerName] = useState("");
-  const [customerPhone, setCustomerPhone] = useState("");
-  const [serviceId, setServiceId] = useState(initialServiceId || services[0]?.id || "");
-  const [selectedDate, setSelectedDate] = useState(initialDate);
-  const [dateDisplayValue, setDateDisplayValue] = useState(
-    format(parse(initialDate, "yyyy-MM-dd", new Date()), "dd/MM/yyyy"),
+  selectedServiceId,
+  selectedDate,
+  quickDates,
+  slots,
+}: ManualBookingProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const [formState, setFormState] = useState<FormState>({
+    ...emptyState,
+    serviceId: selectedServiceId,
+    date: selectedDate,
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoadingSlots, setIsLoadingSlots] = useState(false);
+  const [localSlots, setLocalSlots] = useState<Slot[]>(slots);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(
+    searchParams.get("success") === "1"
+      ? "Agendamento manual criado com sucesso."
+      : null,
   );
-  const [selectedTime, setSelectedTime] = useState("");
-  const [notes, setNotes] = useState("");
-  const [slots, setSlots] = useState<SlotState[]>([]);
-  const [loadingSlots, setLoadingSlots] = useState(false);
-  const [slotNotice, setSlotNotice] = useState("");
-  const [isBlockedDay, setIsBlockedDay] = useState(false);
-  const [confirmingSlot, setConfirmingSlot] = useState<SlotState | null>(null);
-  const [removingSlot, setRemovingSlot] = useState(false);
+  const [confirmingSlot, setConfirmingSlot] = useState<string | null>(null);
 
-  const selectedService = useMemo(
-    () => services.find((service) => service.id === serviceId),
-    [serviceId, services],
-  );
-
-  const quickDates = useMemo(
-    () =>
-      getQuickWeekDates(new Date()).map((item) => ({
-        value: item.iso,
-        label: format(item.date, "EEEE", { locale: ptBR }),
-        shortDate: format(item.date, "dd/MM"),
-      })),
-    [],
-  );
-
-  const loadSlots = useCallback(async () => {
-    if (!selectedDate || !serviceId) {
-      return;
-    }
-
-    setLoadingSlots(true);
-    setSlotNotice("");
-
-    try {
-      const response = await fetch(
-        `/api/admin/manual-bookings/availability?date=${encodeURIComponent(selectedDate)}&serviceId=${encodeURIComponent(serviceId)}`,
-      );
-
-      if (!response.ok) {
-        throw new Error("Falha ao carregar horários.");
-      }
-
-      const payload = (await response.json()) as { slots: SlotState[]; isBlockedDay: boolean };
-      setSlots(payload.slots);
-      setIsBlockedDay(payload.isBlockedDay);
-      setSelectedTime("");
-      setConfirmingSlot(null);
-
-      if (payload.isBlockedDay) {
-        setSlotNotice("Esse dia está fechado pelo barbeiro.");
-      } else if (!payload.slots.some((slot) => slot.status === "available")) {
-        setSlotNotice("Nenhum horário livre para essa combinação.");
-      }
-    } catch {
-      setSlots([]);
-      setSelectedTime("");
-      setConfirmingSlot(null);
-      setSlotNotice("Não foi possível carregar os horários agora.");
-    } finally {
-      setLoadingSlots(false);
-    }
-  }, [selectedDate, serviceId]);
+  const dateSectionRef = useRef<HTMLDivElement | null>(null);
+  const slotsSectionRef = useRef<HTMLDivElement | null>(null);
+  const submitButtonRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
-    void loadSlots();
-  }, [loadSlots]);
+    setFormState((current) => ({
+      ...current,
+      serviceId: selectedServiceId,
+      date: selectedDate,
+      time: current.date === selectedDate ? current.time : "",
+    }));
+    setLocalSlots(slots);
+  }, [selectedDate, selectedServiceId, slots]);
 
-  function updateDateFromIso(isoDate: string) {
-    setSelectedDate(isoDate);
-    const parsed = parse(isoDate, "yyyy-MM-dd", new Date());
-    setDateDisplayValue(isValid(parsed) ? format(parsed, "dd/MM/yyyy") : "");
-  }
+  useEffect(() => {
+    if (!formState.serviceId) return;
+    dateSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [formState.serviceId]);
 
-  function updateDateFromDisplay(displayDate: string) {
-    setDateDisplayValue(displayDate);
-    const parsed = parse(displayDate, "dd/MM/yyyy", new Date());
-    if (isValid(parsed)) {
-      setSelectedDate(format(parsed, "yyyy-MM-dd"));
+  useEffect(() => {
+    if (!formState.date) return;
+    slotsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [formState.date]);
+
+  useEffect(() => {
+    if (!formState.time) return;
+    submitButtonRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [formState.time]);
+
+  const selectedService = useMemo(
+    () => services.find((service) => service.id === formState.serviceId) ?? null,
+    [formState.serviceId, services],
+  );
+
+  const updateSearchParams = useCallback(
+    (serviceId: string, date: string) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (serviceId) {
+        params.set("serviceId", serviceId);
+      } else {
+        params.delete("serviceId");
+      }
+      if (date) {
+        params.set("date", date);
+      } else {
+        params.delete("date");
+      }
+      params.delete("success");
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    },
+    [pathname, router, searchParams],
+  );
+
+  const refreshAvailability = useCallback(
+    async (serviceId: string, date: string) => {
+      if (!serviceId || !date) {
+        setLocalSlots([]);
+        return;
+      }
+
+      setIsLoadingSlots(true);
+      setErrorMessage(null);
+      try {
+        const params = new URLSearchParams({ barberId, serviceId, date });
+        const response = await fetch(
+          `/api/admin/manual-bookings/availability?${params.toString()}`,
+          { cache: "no-store" },
+        );
+        if (!response.ok) {
+          throw new Error("Nao foi possivel atualizar os horarios.");
+        }
+        const payload = (await response.json()) as { slots: Slot[] };
+        setLocalSlots(payload.slots);
+      } catch (error) {
+        console.error(error);
+        setErrorMessage("Nao foi possivel atualizar os horarios agora.");
+      } finally {
+        setIsLoadingSlots(false);
+      }
+    },
+    [barberId],
+  );
+
+  const handleServiceChange = async (serviceId: string) => {
+    setFormState((current) => ({ ...current, serviceId, time: "" }));
+    updateSearchParams(serviceId, formState.date);
+    if (formState.date) {
+      await refreshAvailability(serviceId, formState.date);
     }
-  }
+  };
 
-  async function handleRemoveBookedSlot() {
-    if (!confirmingSlot?.appointmentId) {
+  const handleDateChange = async (date: string) => {
+    setFormState((current) => ({ ...current, date, time: "" }));
+    updateSearchParams(formState.serviceId, date);
+    if (formState.serviceId) {
+      await refreshAvailability(formState.serviceId, date);
+    }
+  };
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setErrorMessage(null);
+    setSuccessMessage(null);
+
+    if (!formState.customerName || !formState.customerPhone || !formState.serviceId || !formState.date || !formState.time) {
+      setErrorMessage("Preencha nome, telefone, servico, data e horario.");
       return;
     }
 
-    setRemovingSlot(true);
-
+    setIsSubmitting(true);
     try {
-      const response = await fetch("/api/admin/appointments/remove", {
+      const response = await fetch("/api/admin/manual-bookings", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ appointmentId: confirmingSlot.appointmentId }),
+        body: JSON.stringify({
+          barberId,
+          customerName: formState.customerName,
+          customerPhone: formState.customerPhone,
+          serviceId: formState.serviceId,
+          date: formState.date,
+          time: formState.time,
+        }),
       });
 
       if (!response.ok) {
-        throw new Error("Falha ao excluir o horário.");
+        const payload = (await response.json().catch(() => null)) as
+          | { error?: string }
+          | null;
+        throw new Error(payload?.error || "Nao foi possivel criar o agendamento manual.");
       }
 
-      const releasedTime = confirmingSlot.time;
-      await loadSlots();
-      setSlotNotice(`Horário ${releasedTime} liberado com sucesso.`);
+      setSuccessMessage("Agendamento manual criado com sucesso.");
+      setFormState((current) => ({
+        ...emptyState,
+        serviceId: current.serviceId,
+        date: current.date,
+      }));
+      await refreshAvailability(formState.serviceId, formState.date);
     } catch (error) {
       console.error(error);
-      window.alert("Não conseguimos excluir esse horário agora. Tente novamente.");
+      setErrorMessage(
+        error instanceof Error ? error.message : "Nao foi possivel criar o agendamento manual.",
+      );
     } finally {
-      setRemovingSlot(false);
+      setIsSubmitting(false);
     }
-  }
+  };
+
+  const handleRemoveBookedSlot = async (slot: Slot) => {
+    const targetId = slot.appointmentId ?? slot.blockedSlotId;
+    if (!targetId) return;
+
+    setErrorMessage(null);
+    try {
+      const endpoint = slot.appointmentId
+        ? "/api/admin/appointments/remove"
+        : "/api/admin/blocks/remove";
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(
+          slot.appointmentId ? { appointmentId: targetId } : { blockId: targetId },
+        ),
+      });
+
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => null)) as
+          | { error?: string }
+          | null;
+        throw new Error(payload?.error || "Nao foi possivel liberar esse horario.");
+      }
+
+      setConfirmingSlot(null);
+      await refreshAvailability(formState.serviceId, formState.date);
+    } catch (error) {
+      console.error(error);
+      setErrorMessage(
+        error instanceof Error ? error.message : "Nao foi possivel liberar esse horario.",
+      );
+    }
+  };
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[0.78fr_1.22fr]">
-      <section className="glass rounded-[24px] p-4 sm:rounded-[32px] sm:p-6">
-        <p className="text-xs uppercase tracking-[0.45em] text-amber-200/60">Agendamento manual</p>
-        <h2 className="mt-3 text-2xl text-amber-50 sm:text-3xl">Criar reserva pelo barbeiro</h2>
-        <p className="mt-3 text-sm text-stone-300">
-          Use esse fluxo para encaixar clientes que preferem marcar direto com o barbeiro. O pagamento fica combinado na hora.
+    <div className="grid gap-8 lg:grid-cols-[1.05fr_1fr]">
+      <section className="rounded-[2rem] border border-white/10 bg-[#2b2623] p-6 text-white shadow-[0_30px_80px_rgba(0,0,0,0.35)] lg:p-8">
+        <p className="text-xs uppercase tracking-[0.35em] text-[#d6bf74]">Agendamento manual</p>
+        <h1 className="mt-3 font-[var(--font-display)] text-4xl text-[#f9f1df] sm:text-5xl">
+          Criar reserva pelo barbeiro
+        </h1>
+        <p className="mt-4 max-w-xl text-sm text-[#f1e7d6]/75 sm:text-base">
+          Use esse fluxo para encaixar clientes que preferem marcar direto com o barbeiro.
+          O pagamento fica combinado na hora.
         </p>
 
-        {success ? (
-          <div className="mt-5 rounded-[22px] border border-emerald-400/35 bg-emerald-400/10 p-4 text-sm text-emerald-100">
-            Agendamento manual criado com sucesso.
-          </div>
-        ) : null}
-        {error === "slot-unavailable" ? (
-          <div className="mt-5 rounded-[22px] border border-red-500/35 bg-red-500/10 p-4 text-sm text-red-100">
-            Esse horário já foi ocupado ou bloqueado. Escolha outro horário.
-          </div>
-        ) : null}
-        {error === "missing-fields" ? (
-          <div className="mt-5 rounded-[22px] border border-red-500/35 bg-red-500/10 p-4 text-sm text-red-100">
-            Preencha nome, telefone, serviço, data e horário para concluir o agendamento.
+        {successMessage ? (
+          <div className="mt-6 rounded-[1.35rem] border border-emerald-400/35 bg-emerald-500/12 px-5 py-4 text-sm text-emerald-100">
+            {successMessage}
           </div>
         ) : null}
 
-        <form action="/api/admin/manual-bookings" method="post" className="mt-6 space-y-4">
-          <input type="hidden" name="serviceId" value={serviceId} />
-          <input type="hidden" name="date" value={selectedDate} />
-          <input type="hidden" name="time" value={selectedTime} />
+        {errorMessage ? (
+          <div className="mt-6 rounded-[1.35rem] border border-rose-400/35 bg-rose-500/12 px-5 py-4 text-sm text-rose-100">
+            {errorMessage}
+          </div>
+        ) : null}
 
+        <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
           <input
-            name="customerName"
-            value={customerName}
-            onChange={(event) => setCustomerName(event.target.value)}
+            className="h-14 w-full rounded-[1.1rem] border border-white/10 bg-[#1f1b18] px-5 text-base text-white outline-none transition focus:border-[#d6bf74]"
             placeholder="Nome do cliente"
-            className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-stone-100 placeholder:text-stone-500"
+            value={formState.customerName}
+            onChange={(event) =>
+              setFormState((current) => ({ ...current, customerName: event.target.value }))
+            }
           />
+
           <input
-            name="customerPhone"
-            value={customerPhone}
-            onChange={(event) => setCustomerPhone(event.target.value)}
+            className="h-14 w-full rounded-[1.1rem] border border-white/10 bg-[#1f1b18] px-5 text-base text-white outline-none transition focus:border-[#d6bf74]"
             placeholder="Telefone do cliente"
-            className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-stone-100 placeholder:text-stone-500"
+            value={formState.customerPhone}
+            onChange={(event) =>
+              setFormState((current) => ({ ...current, customerPhone: event.target.value }))
+            }
           />
+
           <select
-            value={serviceId}
-            onChange={(event) => setServiceId(event.target.value)}
-            className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-stone-100"
+            className="h-14 w-full rounded-[1.1rem] border border-white/10 bg-[#1f1b18] px-5 text-base text-white outline-none transition focus:border-[#d6bf74]"
+            value={formState.serviceId}
+            onChange={(event) => void handleServiceChange(event.target.value)}
           >
+            <option value="">Escolha o servico</option>
             {services.map((service) => (
               <option key={service.id} value={service.id}>
-                {service.name} - {formatMoney(service.price_in_cents)}
+                {service.name} - {(service.priceCents / 100).toLocaleString("pt-BR", {
+                  style: "currency",
+                  currency: "BRL",
+                })}
               </option>
             ))}
           </select>
 
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {quickDates.map((date) => {
-              const isSelected = selectedDate === date.value;
-              return (
-                <button
-                  key={date.value}
-                  type="button"
-                  onClick={() => updateDateFromIso(date.value)}
-                  className={`rounded-2xl border px-3 py-3 text-left text-sm transition ${
-                    isSelected
-                      ? "border-amber-300 bg-amber-300/12 text-amber-100"
-                      : "border-white/10 bg-black/20 text-stone-200 hover:border-amber-200/35 hover:bg-amber-300/8"
-                  }`}
-                >
-                  <span className="block text-[10px] uppercase tracking-[0.28em] text-amber-200/70">{date.label}</span>
-                  <span className="mt-1 block text-base font-semibold">{date.shortDate}</span>
-                </button>
-              );
-            })}
+          <div ref={dateSectionRef} className="space-y-4">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {quickDates.map((quickDate) => {
+                const isSelected = formState.date === quickDate.value;
+                return (
+                  <button
+                    key={quickDate.value}
+                    type="button"
+                    className={`rounded-[1.15rem] border px-4 py-3 text-left transition ${
+                      isSelected
+                        ? "border-[#d6bf74] bg-[#3f3420] text-[#f9f1df]"
+                        : "border-white/10 bg-[#221d1a] text-white/85 hover:border-[#d6bf74]/55"
+                    }`}
+                    onClick={() => void handleDateChange(quickDate.value)}
+                  >
+                    <span className="block text-[11px] uppercase tracking-[0.24em] text-[#d6bf74]">
+                      {quickDate.label}
+                    </span>
+                    <span className="mt-1 block text-2xl font-semibold leading-none">
+                      {quickDate.shortLabel}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <input
+              className="h-14 w-full rounded-[1.1rem] border border-white/10 bg-[#1f1b18] px-5 text-base text-white outline-none transition focus:border-[#d6bf74]"
+              value={formState.date}
+              onChange={(event) => void handleDateChange(event.target.value)}
+              placeholder="dd/mm/aaaa"
+            />
           </div>
 
-          <input
-            type="text"
-            inputMode="numeric"
-            placeholder="dd/mm/aaaa"
-            value={dateDisplayValue}
-            onChange={(event) => updateDateFromDisplay(event.target.value)}
-            className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-stone-100 placeholder:text-stone-500"
-          />
-
-          <textarea
-            name="notes"
-            value={notes}
-            onChange={(event) => setNotes(event.target.value)}
-            placeholder="Observação opcional"
-            className="min-h-24 w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-stone-100 placeholder:text-stone-500"
-          />
-
           <button
+            ref={submitButtonRef}
             type="submit"
-            disabled={!customerName.trim() || !customerPhone.trim() || !selectedTime || isBlockedDay}
-            className="rounded-2xl bg-amber-300 px-5 py-3 font-semibold text-stone-950 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:bg-stone-600 disabled:text-stone-300"
+            disabled={
+              isSubmitting ||
+              !formState.customerName ||
+              !formState.customerPhone ||
+              !formState.serviceId ||
+              !formState.date ||
+              !formState.time
+            }
+            className="h-14 w-full rounded-[1.1rem] bg-[#ffd24a] px-5 text-lg font-semibold text-[#1b1307] transition hover:brightness-105 disabled:cursor-not-allowed disabled:bg-[#6a6254] disabled:text-white/60"
           >
-            Confirmar agendamento manual
+            {isSubmitting ? "Criando agendamento..." : "Confirmar agendamento manual"}
           </button>
         </form>
       </section>
 
-      <section className="glass rounded-[24px] p-4 sm:rounded-[32px] sm:p-6">
-        <p className="text-xs uppercase tracking-[0.45em] text-amber-200/60">Agenda do barbeiro</p>
-        <h2 className="mt-3 text-2xl text-amber-50 sm:text-3xl">Escolha o horário com facilidade</h2>
-        <p className="mt-3 text-sm text-stone-300">
-          Barbeiro: {barberName}. {selectedService ? `Serviço: ${selectedService.name} (${formatMoney(selectedService.price_in_cents)}).` : ""}
+      <section
+        ref={slotsSectionRef}
+        className="rounded-[2rem] border border-white/10 bg-[#2b2623] p-6 text-white shadow-[0_30px_80px_rgba(0,0,0,0.35)] lg:p-8"
+      >
+        <p className="text-xs uppercase tracking-[0.35em] text-[#d6bf74]">Agenda do barbeiro</p>
+        <h2 className="mt-3 font-[var(--font-display)] text-4xl text-[#f9f1df] sm:text-5xl">
+          Escolha o horario com facilidade
+        </h2>
+        <p className="mt-4 text-sm text-[#f1e7d6]/75 sm:text-base">
+          Barbeiro: Gabriel Rodrigues. Servico: {selectedService?.name ?? "Escolha um servico"}
+          {selectedService
+            ? ` (${(selectedService.priceCents / 100).toLocaleString("pt-BR", {
+                style: "currency",
+                currency: "BRL",
+              })}).`
+            : "."}
         </p>
 
-        <div className="mt-6">
-          {loadingSlots ? (
-            <div className="rounded-[22px] border border-dashed border-white/10 bg-black/15 p-5 text-sm text-stone-400">
-              Carregando horários...
+        <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
+          {isLoadingSlots ? (
+            <div className="col-span-full rounded-[1.3rem] border border-white/10 bg-[#1f1b18] px-5 py-6 text-sm text-white/70">
+              Carregando horarios...
             </div>
-          ) : (
-            <>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
-                {slots.map((slot) => (
+          ) : null}
+
+          {!isLoadingSlots && localSlots.length === 0 ? (
+            <div className="col-span-full rounded-[1.3rem] border border-dashed border-white/10 bg-[#1f1b18] px-5 py-6 text-sm text-white/60">
+              Escolha um servico e uma data para ver os horarios.
+            </div>
+          ) : null}
+
+          {!isLoadingSlots
+            ? localSlots.map((slot) => {
+                const isSelected = formState.time === slot.time;
+                const isUnavailable = slot.status !== "available";
+                const isConfirming = confirmingSlot === slot.time;
+
+                if (isConfirming) {
+                  return (
+                    <div
+                      key={`${slot.time}-confirm`}
+                      className="rounded-[1.1rem] border border-rose-400/35 bg-rose-500/12 px-3 py-3 text-center"
+                    >
+                      <p className="text-xs font-semibold uppercase tracking-[0.22em] text-rose-200">
+                        Liberar horario?
+                      </p>
+                      <div className="mt-3 flex gap-2">
+                        <button
+                          type="button"
+                          className="flex-1 rounded-full bg-rose-500 px-3 py-2 text-sm font-semibold text-white"
+                          onClick={() => void handleRemoveBookedSlot(slot)}
+                        >
+                          Sim
+                        </button>
+                        <button
+                          type="button"
+                          className="flex-1 rounded-full border border-white/15 px-3 py-2 text-sm font-semibold text-white/80"
+                          onClick={() => setConfirmingSlot(null)}
+                        >
+                          Nao
+                        </button>
+                      </div>
+                    </div>
+                  );
+                }
+
+                return (
                   <button
                     key={slot.time}
                     type="button"
                     disabled={slot.status === "past" || slot.status === "blocked"}
+                    className={`relative rounded-[1.1rem] border px-4 py-4 text-center text-lg font-semibold transition ${
+                      slot.status === "available"
+                        ? isSelected
+                          ? "border-[#d6bf74] bg-[#3f3420] text-[#f9f1df]"
+                          : "border-white/10 bg-[#221d1a] text-white/85 hover:border-[#d6bf74]/55"
+                        : slot.status === "booked"
+                          ? "border-rose-500/40 bg-rose-500/10 text-white/65"
+                          : slot.status === "blocked"
+                            ? "border-amber-500/35 bg-amber-500/10 text-white/55"
+                            : "border-white/5 bg-[#1c1815] text-white/35"
+                    }`}
                     onClick={() => {
                       if (slot.status === "available") {
-                        setSelectedTime(slot.time);
-                        setConfirmingSlot(null);
+                        setFormState((current) => ({ ...current, time: slot.time }));
                         return;
                       }
-
-                      if (slot.status === "booked" && slot.appointmentId) {
-                        setConfirmingSlot(slot);
+                      if (slot.status === "booked") {
+                        setConfirmingSlot(slot.time);
                       }
                     }}
-                    className={`rounded-2xl border px-4 py-3 text-sm transition ${
-                      selectedTime === slot.time
-                        ? "border-amber-300 bg-amber-300/12 text-amber-100"
-                        : slot.status === "available"
-                          ? "border-white/10 bg-white/5 text-stone-100 hover:border-amber-200/40"
-                          : slot.status === "booked" || slot.status === "blocked"
-                            ? "border-red-500/30 bg-red-500/10 text-red-200"
-                            : "border-white/10 bg-black/25 text-stone-500"
-                    }`}
                   >
-                    <div className="flex items-center justify-center gap-2">
-                      <span>{slot.time}</span>
-                      {slot.status === "booked" || slot.status === "blocked" ? <X className="size-4 text-red-300" /> : null}
-                    </div>
-                    {slot.status === "booked" ? <p className="mt-1 text-[11px] uppercase tracking-[0.2em] text-red-200/80">Marcado</p> : null}
-                    {slot.status === "blocked" ? <p className="mt-1 text-[11px] uppercase tracking-[0.2em] text-red-200/80">Bloqueado</p> : null}
+                    {slot.time}
+                    {slot.status === "booked" ? (
+                      <span className="absolute right-3 top-3 text-sm text-rose-200">x</span>
+                    ) : null}
+                    {isUnavailable ? (
+                      <span className="mt-1 block text-[11px] uppercase tracking-[0.22em] text-white/45">
+                        {slot.status === "booked"
+                          ? "Marcado"
+                          : slot.status === "blocked"
+                            ? "Bloqueado"
+                            : "Encerrado"}
+                      </span>
+                    ) : null}
                   </button>
-                ))}
-              </div>
-
-              {confirmingSlot?.status === "booked" && confirmingSlot.appointmentId ? (
-                <div className="mt-4 flex flex-wrap items-center gap-3 rounded-[22px] border border-red-500/25 bg-red-500/10 p-4 text-sm">
-                  <p className="text-red-100">Tem certeza que deseja excluir o horário {confirmingSlot.time} e liberar a vaga?</p>
-                  <button
-                    type="button"
-                    onClick={() => void handleRemoveBookedSlot()}
-                    disabled={removingSlot}
-                    className="rounded-full border border-red-400/35 bg-red-500/15 px-4 py-2 font-semibold text-red-100 transition hover:bg-red-500/22 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {removingSlot ? "Excluindo..." : "Sim"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setConfirmingSlot(null)}
-                    disabled={removingSlot}
-                    className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 font-semibold text-stone-200 transition hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    Não
-                  </button>
-                </div>
-              ) : null}
-
-              {!slots.length || slotNotice ? (
-                <div className="mt-4 rounded-[22px] border border-dashed border-white/10 bg-black/15 p-5 text-sm text-stone-400">
-                  {slotNotice || "Escolha um serviço e uma data para ver os horários do barbeiro."}
-                </div>
-              ) : null}
-            </>
-          )}
+                );
+              })
+            : null}
         </div>
       </section>
     </div>

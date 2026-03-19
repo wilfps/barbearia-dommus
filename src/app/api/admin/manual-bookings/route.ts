@@ -1,4 +1,4 @@
-import { addMinutes } from "date-fns";
+﻿import { addMinutes } from "date-fns";
 import { redirect } from "next/navigation";
 import { generateProtocolCode, getBookingDurationMinutes } from "@/lib/booking";
 import { requireRoles } from "@/lib/auth";
@@ -13,21 +13,50 @@ import {
   markAppointmentPaid,
 } from "@/lib/db";
 
+type ManualBookingPayload = {
+  barberId?: string;
+  customerName?: string;
+  customerPhone?: string;
+  serviceId?: string;
+  date?: string;
+  time?: string;
+};
+
+async function parsePayload(request: Request): Promise<ManualBookingPayload> {
+  const contentType = request.headers.get("content-type") || "";
+
+  if (contentType.includes("application/json")) {
+    return (await request.json().catch(() => ({}))) as ManualBookingPayload;
+  }
+
+  const formData = await request.formData();
+  return {
+    barberId: String(formData.get("barberId") || ""),
+    customerName: String(formData.get("customerName") || "").trim(),
+    customerPhone: String(formData.get("customerPhone") || "").trim(),
+    serviceId: String(formData.get("serviceId") || ""),
+    date: String(formData.get("date") || ""),
+    time: String(formData.get("time") || ""),
+  };
+}
+
 export async function POST(request: Request) {
   await requireRoles(["ADMIN", "BARBER", "OWNER"]);
 
-  const formData = await request.formData();
-  const customerName = String(formData.get("customerName") || "").trim();
-  const customerPhone = String(formData.get("customerPhone") || "").trim();
-  const serviceId = String(formData.get("serviceId") || "");
-  const date = String(formData.get("date") || "");
-  const time = String(formData.get("time") || "");
-  const notes = String(formData.get("notes") || "").trim();
+  const payload = await parsePayload(request);
+  const customerName = String(payload.customerName || "").trim();
+  const customerPhone = String(payload.customerPhone || "").trim();
+  const serviceId = String(payload.serviceId || "");
+  const date = String(payload.date || "");
+  const time = String(payload.time || "");
 
   const barber = getPrimaryBarber();
   const service = getServiceById(serviceId);
 
   if (!barber || !service || !customerName || !customerPhone || !date || !time) {
+    if ((request.headers.get("content-type") || "").includes("application/json")) {
+      return Response.json({ error: "Preencha nome, telefone, servico, data e horario." }, { status: 400 });
+    }
     redirect("/admin/agendamento-manual?error=missing-fields");
   }
 
@@ -49,6 +78,9 @@ export async function POST(request: Request) {
   ).find((item) => scheduledAt < new Date(item.ends_at) && endAt > new Date(item.starts_at));
 
   if (overlapping || blocked) {
+    if ((request.headers.get("content-type") || "").includes("application/json")) {
+      return Response.json({ error: "Esse horario nao esta mais disponivel." }, { status: 409 });
+    }
     redirect(`/admin/agendamento-manual?date=${date}&serviceId=${serviceId}&error=slot-unavailable`);
   }
 
@@ -71,10 +103,14 @@ export async function POST(request: Request) {
     paymentScope: "FULL",
     manualCustomerName: customerName,
     manualCustomerPhone: customerPhone,
-    notes: notes || "Agendamento manual criado pelo barbeiro.",
+    notes: "Agendamento manual criado pelo barbeiro.",
   });
 
   markAppointmentPaid(appointmentId);
+
+  if ((request.headers.get("content-type") || "").includes("application/json")) {
+    return Response.json({ success: true, appointmentId }, { status: 201 });
+  }
 
   redirect(`/admin/agendamento-manual?success=1&date=${date}`);
 }

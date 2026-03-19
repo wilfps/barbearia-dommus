@@ -1,6 +1,6 @@
-import { addDays, format } from "date-fns";
-import { X } from "lucide-react";
+﻿import { addDays, format } from "date-fns";
 import { AppShell } from "@/components/shell";
+import { CustomerScheduleForm } from "@/components/customer-schedule-form";
 import { ServiceSelectionForm } from "@/components/service-selection-form";
 import { getBookingDurationMinutes, listScheduleSlots } from "@/lib/booking";
 import { requireRoles } from "@/lib/auth";
@@ -34,8 +34,7 @@ function normalizeSelectedServiceIds(
     : [];
   const legacy = Array.isArray(rawLegacy) ? rawLegacy : rawLegacy ? [rawLegacy] : [];
   const values = [...combined, ...legacy];
-  const valid = values.filter((value, index) => allServiceIds.includes(value) && values.indexOf(value) === index);
-  return valid;
+  return values.filter((value, index) => allServiceIds.includes(value) && values.indexOf(value) === index);
 }
 
 export default async function ClientePage({ searchParams }: { searchParams: SearchParams }) {
@@ -68,7 +67,9 @@ export default async function ClientePage({ searchParams }: { searchParams: Sear
   const totalDurationMinutes = getBookingDurationMinutes(selectedServices);
   const firstService = selectedServices[0];
   const serviceSummary = selectedServices.map((service) => service.name).join(" + ");
-  const allBlockedSlots = selectedBarber ? listBlockedSlotsByBarberOnDate(selectedBarber.id, new Date().toISOString(), new Date("2099-12-31T23:59:59").toISOString()) : [];
+  const allBlockedSlots = selectedBarber
+    ? listBlockedSlotsByBarberOnDate(selectedBarber.id, new Date().toISOString(), new Date("2099-12-31T23:59:59").toISOString())
+    : [];
   const blockedFullDayDates = allBlockedSlots
     .filter((slot) => formatBrazilTime(slot.starts_at) === "00:00" && formatBrazilTime(slot.ends_at) === "23:59")
     .map((slot) => formatBrazilDateInput(slot.starts_at));
@@ -80,18 +81,10 @@ export default async function ClientePage({ searchParams }: { searchParams: Sear
     selectedBarber && firstService
       ? await Promise.all([
           Promise.resolve(
-            listAppointmentsByBarberOnDate(
-              selectedBarber.id,
-              selectedDayRange.startIso,
-              selectedDayRange.endIso,
-            ),
+            listAppointmentsByBarberOnDate(selectedBarber.id, selectedDayRange.startIso, selectedDayRange.endIso),
           ),
           Promise.resolve(
-            listBlockedSlotsByBarberOnDate(
-              selectedBarber.id,
-              selectedDayRange.startIso,
-              selectedDayRange.endIso,
-            ),
+            listBlockedSlotsByBarberOnDate(selectedBarber.id, selectedDayRange.startIso, selectedDayRange.endIso),
           ),
         ])
       : [[], []];
@@ -111,6 +104,11 @@ export default async function ClientePage({ searchParams }: { searchParams: Sear
           blockedSlots,
         })
       : [];
+
+  const serializedSlots = slots.map((slot) => ({
+    time: formatBrazilTime(slot.time),
+    status: slot.status,
+  }));
 
   return (
     <AppShell
@@ -144,12 +142,12 @@ export default async function ClientePage({ searchParams }: { searchParams: Sear
 
             <ServiceSelectionForm
               services={services}
-            initialSelectedIds={selectedServiceIds}
-            initialDate={selectedDate}
-            barberName={selectedBarber?.name ?? "Gabriel Rodrigues"}
-            blockedFullDayDates={blockedFullDayDates}
-          />
-        </section>
+              initialSelectedIds={selectedServiceIds}
+              initialDate={selectedDate}
+              barberName={selectedBarber?.name ?? "Gabriel Rodrigues"}
+              blockedFullDayDates={blockedFullDayDates}
+            />
+          </section>
 
           <section id="horarios" className="glass rounded-[24px] p-4 sm:rounded-[32px] sm:p-6">
             <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
@@ -166,67 +164,19 @@ export default async function ClientePage({ searchParams }: { searchParams: Sear
 
             <div className="mt-6">
               {selectedServices.length && selectedBarber && !isSelectedDateBlocked ? (
-                <form action="/api/bookings" method="post" className="space-y-5">
-                  {selectedServices.map((service) => (
-                    <input key={service.id} type="hidden" name="serviceId" value={service.id} />
-                  ))}
-                  <input type="hidden" name="barberId" value={selectedBarber.id} />
-                  <input type="hidden" name="date" value={selectedDate} />
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-                    {slots.length ? (
-                      slots.map((slot) => (
-                        <label
-                          key={slot.time.toISOString()}
-                          className={`block ${slot.status === "available" ? "cursor-pointer" : "cursor-not-allowed"}`}
-                        >
-                          <input
-                            className="peer sr-only"
-                            type="radio"
-                            name="time"
-                            value={formatBrazilTime(slot.time)}
-                            required
-                            disabled={slot.status !== "available"}
-                          />
-                          <div
-                            className={`rounded-2xl border px-4 py-3 text-center text-sm transition ${
-                              slot.status === "available"
-                                ? "border-white/10 bg-white/5 peer-checked:border-amber-300 peer-checked:bg-amber-300/10 hover:border-amber-200/40"
-                                : slot.status === "booked" || slot.status === "blocked"
-                                  ? "border-red-500/30 bg-red-500/10 text-red-200"
-                                  : "border-white/10 bg-black/25 text-stone-500"
-                            }`}
-                          >
-                            <div className="flex items-center justify-center gap-2">
-                              <span>{formatBrazilTime(slot.time)}</span>
-                              {slot.status === "booked" || slot.status === "blocked" ? <X className="size-4 text-red-300" /> : null}
-                            </div>
-                            {slot.status === "booked" ? (
-                              <p className="mt-1 text-[11px] uppercase tracking-[0.2em] text-red-200/80">Marcado</p>
-                            ) : null}
-                            {slot.status === "blocked" ? (
-                              <p className="mt-1 text-[11px] uppercase tracking-[0.2em] text-red-200/80">Bloqueado</p>
-                            ) : null}
-                          </div>
-                        </label>
-                      ))
-                    ) : (
-                      <div className="rounded-2xl border border-dashed border-white/10 bg-black/15 px-4 py-6 text-sm text-stone-400 md:col-span-4">
-                        Nenhum horário livre nessa data para esse conjunto de serviços. Tente outro dia.
-                      </div>
-                    )}
-                  </div>
-                  <textarea name="notes" placeholder="Observações opcionais do cliente" className="min-h-24 w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-stone-100 placeholder:text-stone-500" />
-                  <button type="submit" className="rounded-2xl border border-amber-300/60 px-6 py-3 font-semibold text-amber-100 transition hover:bg-amber-300/10">
-                    Criar reserva e gerar protocolo
-                  </button>
-                </form>
+                <CustomerScheduleForm
+                  serviceIds={selectedServices.map((service) => service.id)}
+                  barberId={selectedBarber.id}
+                  selectedDate={selectedDate}
+                  slots={serializedSlots}
+                />
               ) : selectedServices.length && isSelectedDateBlocked ? (
                 <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-6 text-sm text-red-100">
                   Esse dia está bloqueado pelo barbeiro. Escolha outra data para ver os horários disponíveis.
                 </div>
               ) : (
                 <div className="rounded-2xl border border-dashed border-white/10 bg-black/15 px-4 py-6 text-sm text-stone-400">
-                  Escolha pelo menos um serviço, selecione o dia e clique em mostrar horários disponíveis para ver a agenda atualizada.
+                  Escolha pelo menos um serviço e selecione a data para ver a agenda atualizada.
                 </div>
               )}
             </div>
@@ -238,5 +188,3 @@ export default async function ClientePage({ searchParams }: { searchParams: Sear
     </AppShell>
   );
 }
-
-
