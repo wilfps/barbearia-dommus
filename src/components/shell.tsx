@@ -1,7 +1,6 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { Scissors, ShieldCheck, UserRound } from "lucide-react";
-import { clearSession, getSession } from "@/lib/auth";
+import { getSession } from "@/lib/auth";
 
 export async function AppShell({
   children,
@@ -50,13 +49,7 @@ export async function AppShell({
               </>
             ) : null}
             {session ? (
-              <form
-                action={async () => {
-                  "use server";
-                  await clearSession();
-                  redirect("/");
-                }}
-              >
+              <form action="/api/auth/logout" method="post">
                 <button
                   className="w-full rounded-full bg-amber-300 px-4 py-3 font-medium text-stone-950 transition hover:bg-amber-200 sm:w-auto sm:py-2"
                   type="submit"

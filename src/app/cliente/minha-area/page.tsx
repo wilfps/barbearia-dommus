@@ -141,7 +141,7 @@ export default async function ClienteMinhaAreaPage({ searchParams }: { searchPar
             <p className="text-xs uppercase tracking-[0.45em] text-amber-200/60">Perfil</p>
             <h2 className="mt-3 text-2xl text-amber-50 sm:text-3xl">Minha conta</h2>
             <form action="/api/customer/profile" method="post" encType="multipart/form-data" className="mt-6 space-y-4">
-              <div className="flex items-center gap-4">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
                 <div
                   className="relative shrink-0 overflow-hidden rounded-full border border-white/10 bg-black/20"
                   style={{ width: "76px", height: "76px", minWidth: "76px", minHeight: "76px" }}
@@ -155,8 +155,8 @@ export default async function ClienteMinhaAreaPage({ searchParams }: { searchPar
                     </div>
                   )}
                 </div>
-                <div className="flex-1">
-                  <p className="text-lg text-amber-50">{user.name}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="break-words text-lg leading-tight text-amber-50">{user.name}</p>
                   <p className="text-sm text-stone-400">Atualize sua foto, e-mail, telefone e nascimento.</p>
                 </div>
               </div>
