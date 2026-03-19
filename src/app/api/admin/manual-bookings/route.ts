@@ -5,6 +5,7 @@ import { requireRoles } from "@/lib/auth";
 import { getBrazilDayRange, toBrazilDateObject } from "@/lib/brazil-time";
 import {
   createAppointment,
+  ensureManualCustomer,
   getPrimaryBarber,
   getServiceById,
   listAppointmentsByBarberOnDate,
@@ -51,8 +52,14 @@ export async function POST(request: Request) {
     redirect(`/admin/agendamento-manual?date=${date}&serviceId=${serviceId}&error=slot-unavailable`);
   }
 
+  const customer = ensureManualCustomer({
+    name: customerName,
+    phone: customerPhone,
+  });
+
   const appointmentId = createAppointment({
     protocolCode: generateProtocolCode(),
+    customerId: customer.id,
     barberId: barber.id,
     serviceId: service.id,
     serviceSummary: service.name,

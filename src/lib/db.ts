@@ -119,6 +119,10 @@ function nowIso() {
   return new Date().toISOString();
 }
 
+function normalizePhone(value: string) {
+  return value.replace(/\D/g, "");
+}
+
 function ensureColumn(table: string, column: string, definition: string) {
   const columns = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
   if (!columns.some((item) => item.name === column)) {
@@ -528,6 +532,38 @@ export function createUser(input: { name: string; email: string; phone: string; 
   `).run(id, input.name, input.email, input.phone, input.birthDate ?? null, input.passwordHash, input.role ?? "CUSTOMER", timestamp, timestamp);
 
   return getUserById(id)!;
+}
+
+export function ensureManualCustomer(input: { name: string; phone: string }) {
+  const normalizedPhone = normalizePhone(input.phone);
+  const customers = db.prepare(`
+    SELECT u.*, bp.bio, bp.specialty, bp.starts_at_hour, bp.ends_at_hour, bp.interval_minutes
+    FROM users u
+    LEFT JOIN barber_profiles bp ON bp.user_id = u.id
+    WHERE u.role = 'CUSTOMER'
+  `).all() as UserRecord[];
+
+  const existing = customers.find((customer) => normalizePhone(customer.phone) === normalizedPhone);
+  if (existing) {
+    return existing;
+  }
+
+  const emailBase = normalizedPhone ? `manual-${normalizedPhone}` : `manual-${Date.now()}`;
+  let email = `${emailBase}@dommus.local`;
+  let suffix = 1;
+
+  while (getUserByEmail(email)) {
+    email = `${emailBase}-${suffix}@dommus.local`;
+    suffix += 1;
+  }
+
+  return createUser({
+    name: input.name,
+    email,
+    phone: input.phone,
+    passwordHash: bcrypt.hashSync(crypto.randomUUID(), 10),
+    role: "CUSTOMER",
+  });
 }
 
 export function updateUserProfile(input: { userId: string; email: string; phone: string; birthDate?: string | null; avatarPath?: string | null }) {
