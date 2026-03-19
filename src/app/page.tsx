@@ -11,11 +11,11 @@ type SearchParams = Promise<{ blocked?: string; reset?: string }>;
 export default async function Home({ searchParams }: { searchParams: SearchParams }) {
   const [session, site] = await Promise.all([getSession(), Promise.resolve(getSiteSetting())]);
   const params = await searchParams;
+  const isBlocked = !site.is_open;
 
-  if (session) {
+  if (session && (!isBlocked || session.role === "OWNER")) {
     redirect("/dashboard");
   }
-  const isBlocked = !site.is_open;
 
   return (
     <main className="min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top,#58452f_0%,#15110e_36%,#070707_100%)] text-stone-100">
@@ -36,7 +36,7 @@ export default async function Home({ searchParams }: { searchParams: SearchParam
             <div className="flex justify-center lg:justify-start">
               <div className="gold-ring overflow-hidden rounded-full border border-amber-200/20 bg-black/30 p-2 shadow-[0_20px_60px_rgba(0,0,0,0.35)]">
                 <Image
-                  src="/logo-dommus.png"
+                  src="/logo-dommus-2026.png"
                   alt="Logo Dommus Barbearia"
                   width={120}
                   height={120}
@@ -122,3 +122,4 @@ export default async function Home({ searchParams }: { searchParams: SearchParam
     </main>
   );
 }
+

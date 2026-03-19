@@ -20,6 +20,7 @@ export async function POST(request: Request) {
   const date = String(formData.get("date") || "");
   const time = String(formData.get("time") || "");
   const notes = String(formData.get("notes") || "");
+  const paymentScope = String(formData.get("paymentScope") || "DEPOSIT") === "FULL" ? "FULL" : "DEPOSIT";
 
   const services = serviceIds
     .map((serviceId) => getServiceById(serviceId))
@@ -72,6 +73,8 @@ export async function POST(request: Request) {
     endAt: endAt.toISOString(),
     totalPriceInCents,
     depositInCents: Math.round(totalPriceInCents / 2),
+    checkoutAmountInCents: paymentScope === "FULL" ? totalPriceInCents : Math.round(totalPriceInCents / 2),
+    paymentScope,
     notes,
   });
 

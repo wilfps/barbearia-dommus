@@ -32,7 +32,7 @@ function PaymentNotice({ payment }: { payment?: string }) {
     return (
       <section className="rounded-[24px] border border-emerald-400/35 bg-emerald-400/10 p-4 text-emerald-50 sm:rounded-[28px] sm:p-5">
         <p className="text-xs uppercase tracking-[0.35em] text-emerald-200/80">Pagamento confirmado</p>
-        <h2 className="mt-2 text-xl">Seu sinal foi reconhecido com sucesso</h2>
+        <h2 className="mt-2 text-xl">Seu pagamento foi reconhecido com sucesso</h2>
         <p className="mt-2 text-sm text-emerald-100/90">
           A reserva foi confirmada e o protocolo já está pronto para identificação junto ao barbeiro.
         </p>
@@ -197,7 +197,11 @@ export default async function ClienteMinhaAreaPage({ searchParams }: { searchPar
               {" "}WhatsApp: {whatsappConfig.tokenConfigured && whatsappConfig.phoneIdConfigured ? "pronto para envio automático" : "link direto por enquanto"}.
             </p>
             <div className="mt-6 space-y-4">
-              {pendingAppointments.map((appointment) => (
+              {pendingAppointments.map((appointment) => {
+                const payingFull = (appointment.payment_scope || "DEPOSIT") === "FULL";
+                const amountDue = appointment.checkout_amount_in_cents || appointment.deposit_in_cents;
+
+                return (
                 <div
                   key={appointment.id}
                   className={`rounded-[24px] border bg-black/15 p-5 ${
@@ -215,20 +219,42 @@ export default async function ClienteMinhaAreaPage({ searchParams }: { searchPar
                       </p>
                     </div>
                     <div className="text-sm md:text-right">
-                      <p className="text-stone-400">Sinal da reserva</p>
-                      <p className="font-semibold text-amber-100">{formatMoney(appointment.deposit_in_cents)}</p>
+                      <p className="text-stone-400">{payingFull ? "Valor para quitar agora" : "Sinal da reserva"}</p>
+                      <p className="font-semibold text-amber-100">{formatMoney(amountDue)}</p>
                       <p className="mt-1 font-medium text-amber-200">Pagamento pendente</p>
                     </div>
+                  </div>
+                  <div className="mt-4 flex flex-wrap gap-2 text-sm">
+                    <span
+                      className={`rounded-full border px-3 py-2 ${
+                        !payingFull
+                          ? "border-amber-300/35 bg-amber-300/10 text-amber-100"
+                          : "border-white/10 bg-black/10 text-stone-300"
+                      }`}
+                    >
+                      Reservar com sinal: {formatMoney(appointment.deposit_in_cents)}
+                    </span>
+                    <span
+                      className={`rounded-full border px-3 py-2 ${
+                        payingFull
+                          ? "border-emerald-400/35 bg-emerald-400/10 text-emerald-200"
+                          : "border-white/10 bg-black/10 text-stone-300"
+                      }`}
+                    >
+                      Quitar agora: {formatMoney(appointment.total_price_in_cents)}
+                    </span>
                   </div>
                   <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                     {(() => {
                       const pixPayload = buildPixCheckoutPayload({
-                        amountInCents: appointment.deposit_in_cents,
+                        amountInCents: amountDue,
                         protocolCode: appointment.protocol_code,
                         customerName: user.name,
                         customerEmail: user.email,
                         customerPhone: user.phone,
-                        description: `Sinal da reserva - ${appointment.service_name}`,
+                        description: payingFull
+                          ? `Pagamento da reserva - ${appointment.service_name}`
+                          : `Sinal da reserva - ${appointment.service_name}`,
                       });
 
                       return <input type="hidden" name={`pix-preview-${appointment.id}`} value={JSON.stringify(pixPayload)} />;
@@ -236,8 +262,17 @@ export default async function ClienteMinhaAreaPage({ searchParams }: { searchPar
                     <form action="/api/bookings/pay" method="post">
                       <input type="hidden" name="appointmentId" value={appointment.id} />
                       <input type="hidden" name="returnTo" value="/cliente/minha-area#checkout" />
+                      <input type="hidden" name="paymentScope" value="DEPOSIT" />
                       <button type="submit" className="rounded-2xl bg-amber-300 px-4 py-2 font-semibold text-stone-950 transition hover:bg-amber-200">
-                        Finalizar pagamento
+                        Pagar sinal
+                      </button>
+                    </form>
+                    <form action="/api/bookings/pay" method="post">
+                      <input type="hidden" name="appointmentId" value={appointment.id} />
+                      <input type="hidden" name="returnTo" value="/cliente/minha-area#checkout" />
+                      <input type="hidden" name="paymentScope" value="FULL" />
+                      <button type="submit" className="rounded-2xl border border-emerald-400/35 bg-emerald-400/10 px-4 py-2 font-semibold text-emerald-200 transition hover:bg-emerald-400/20">
+                        Quitar agora
                       </button>
                     </form>
                     <Link
@@ -247,7 +282,7 @@ export default async function ClienteMinhaAreaPage({ searchParams }: { searchPar
                           customerName: user.name,
                           protocolCode: appointment.protocol_code,
                           serviceName: appointment.service_name || "serviço",
-                          depositInCents: appointment.deposit_in_cents,
+                          depositInCents: amountDue,
                         }),
                       )}
                       target="_blank"
@@ -264,7 +299,8 @@ export default async function ClienteMinhaAreaPage({ searchParams }: { searchPar
                     </form>
                   </div>
                 </div>
-              ))}
+              );
+              })}
               {!pendingAppointments.length ? (
                 <div className="rounded-[24px] border border-dashed border-white/10 bg-black/15 p-5 text-sm text-stone-400">
                   Nenhum pagamento pendente no momento.
@@ -289,9 +325,19 @@ export default async function ClienteMinhaAreaPage({ searchParams }: { searchPar
                     </p>
                   </div>
                   <div className="text-sm md:text-right">
-                    <p className="text-stone-400">Sinal da reserva</p>
-                    <p className="font-semibold text-amber-100">{formatMoney(appointment.deposit_in_cents)}</p>
-                    <p className="mt-1 font-medium text-emerald-300">Pagamento confirmado</p>
+                    <p className="text-stone-400">
+                      {appointment.paid_amount_in_cents && appointment.paid_amount_in_cents >= appointment.total_price_in_cents
+                        ? "Pagamento total"
+                        : "Sinal da reserva"}
+                    </p>
+                    <p className="font-semibold text-amber-100">
+                      {formatMoney(appointment.paid_amount_in_cents || appointment.deposit_in_cents)}
+                    </p>
+                    <p className="mt-1 font-medium text-emerald-300">
+                      {appointment.paid_amount_in_cents && appointment.paid_amount_in_cents >= appointment.total_price_in_cents
+                        ? "Pagamento total confirmado"
+                        : "Pagamento confirmado"}
+                    </p>
                   </div>
                 </div>
                 <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">

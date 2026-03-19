@@ -61,7 +61,7 @@ export type ServiceRecord = {
 export type AppointmentRecord = {
   id: string;
   protocol_code: string;
-  customer_id: string;
+  customer_id?: string | null;
   barber_id: string;
   service_id: string;
   service_summary?: string | null;
@@ -69,6 +69,9 @@ export type AppointmentRecord = {
   end_at: string;
   total_price_in_cents: number;
   deposit_in_cents: number;
+  checkout_amount_in_cents?: number;
+  paid_amount_in_cents?: number;
+  payment_scope?: string;
   status: string;
   deposit_status: string;
   notes?: string | null;
@@ -77,6 +80,9 @@ export type AppointmentRecord = {
   customer_email?: string;
   customer_phone?: string;
   customer_avatar_path?: string | null;
+  manual_customer_name?: string | null;
+  manual_customer_phone?: string | null;
+  manual_customer_email?: string | null;
   barber_name?: string;
   service_name?: string;
 };
@@ -173,16 +179,22 @@ function initDb() {
     CREATE TABLE IF NOT EXISTS appointments (
       id TEXT PRIMARY KEY,
       protocol_code TEXT NOT NULL UNIQUE,
-      customer_id TEXT NOT NULL,
+      customer_id TEXT,
       barber_id TEXT NOT NULL,
       service_id TEXT NOT NULL,
       scheduled_at TEXT NOT NULL,
       end_at TEXT NOT NULL,
       total_price_in_cents INTEGER NOT NULL,
       deposit_in_cents INTEGER NOT NULL,
+      checkout_amount_in_cents INTEGER NOT NULL DEFAULT 0,
+      paid_amount_in_cents INTEGER NOT NULL DEFAULT 0,
+      payment_scope TEXT NOT NULL DEFAULT 'DEPOSIT',
       status TEXT NOT NULL,
       deposit_status TEXT NOT NULL,
       notes TEXT,
+      manual_customer_name TEXT,
+      manual_customer_phone TEXT,
+      manual_customer_email TEXT,
       created_at TEXT NOT NULL,
       FOREIGN KEY(customer_id) REFERENCES users(id) ON DELETE CASCADE,
       FOREIGN KEY(barber_id) REFERENCES users(id) ON DELETE CASCADE,
@@ -224,6 +236,12 @@ function initDb() {
   ensureColumn("users", "avatar_path", "TEXT");
   ensureColumn("users", "birth_date", "TEXT");
   ensureColumn("appointments", "service_summary", "TEXT");
+  ensureColumn("appointments", "checkout_amount_in_cents", "INTEGER NOT NULL DEFAULT 0");
+  ensureColumn("appointments", "paid_amount_in_cents", "INTEGER NOT NULL DEFAULT 0");
+  ensureColumn("appointments", "payment_scope", "TEXT NOT NULL DEFAULT 'DEPOSIT'");
+  ensureColumn("appointments", "manual_customer_name", "TEXT");
+  ensureColumn("appointments", "manual_customer_phone", "TEXT");
+  ensureColumn("appointments", "manual_customer_email", "TEXT");
   ensureColumn("site_settings", "checkout_provider", "TEXT DEFAULT 'infinitepay'");
   ensureColumn("site_settings", "checkout_handle", "TEXT");
   ensureColumn("site_settings", "checkout_redirect_url", "TEXT");
@@ -314,8 +332,9 @@ function initDb() {
     db.prepare(`
       INSERT OR IGNORE INTO appointments (
         id, protocol_code, customer_id, barber_id, service_id, scheduled_at, end_at,
-        total_price_in_cents, deposit_in_cents, status, deposit_status, notes, created_at, service_summary
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        total_price_in_cents, deposit_in_cents, checkout_amount_in_cents, paid_amount_in_cents, payment_scope,
+        status, deposit_status, notes, created_at, service_summary
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       "appointment_demo",
       "DOMMUS-0001",
@@ -326,6 +345,9 @@ function initDb() {
       new Date(scheduledAt.getTime() + 60 * 60000).toISOString(),
       7500,
       3750,
+      3750,
+      3750,
+      "DEPOSIT",
       "CONFIRMED",
       "PAID",
       "Cliente VIP",
@@ -357,6 +379,22 @@ function initDb() {
     UPDATE blocked_slots
     SET barber_id = 'user_barber'
     WHERE barber_id <> 'user_barber'
+  `).run();
+
+  db.prepare(`
+    UPDATE appointments
+    SET checkout_amount_in_cents = CASE
+      WHEN checkout_amount_in_cents IS NULL OR checkout_amount_in_cents = 0 THEN deposit_in_cents
+      ELSE checkout_amount_in_cents
+    END,
+    paid_amount_in_cents = CASE
+      WHEN deposit_status = 'PAID' AND (paid_amount_in_cents IS NULL OR paid_amount_in_cents = 0) THEN COALESCE(checkout_amount_in_cents, deposit_in_cents)
+      ELSE COALESCE(paid_amount_in_cents, 0)
+    END,
+    payment_scope = CASE
+      WHEN payment_scope IS NULL OR payment_scope = '' THEN 'DEPOSIT'
+      ELSE payment_scope
+    END
   `).run();
 
   db.prepare(`
@@ -600,7 +638,7 @@ export function listBlockedSlotsByBarberOnDate(barberId: string, startIso: strin
 
 export function createAppointment(input: {
   protocolCode: string;
-  customerId: string;
+  customerId?: string | null;
   barberId: string;
   serviceId: string;
   serviceSummary?: string;
@@ -608,27 +646,44 @@ export function createAppointment(input: {
   endAt: string;
   totalPriceInCents: number;
   depositInCents: number;
+  checkoutAmountInCents?: number;
+  paidAmountInCents?: number;
+  paymentScope?: "DEPOSIT" | "FULL";
+  status?: "PENDING_PAYMENT" | "CONFIRMED";
+  depositStatus?: "PENDING" | "PAID";
+  manualCustomerName?: string | null;
+  manualCustomerPhone?: string | null;
+  manualCustomerEmail?: string | null;
   notes: string;
 }) {
   const id = createId("appointment");
   db.prepare(`
     INSERT INTO appointments (
       id, protocol_code, customer_id, barber_id, service_id, scheduled_at, end_at,
-      total_price_in_cents, deposit_in_cents, status, deposit_status, notes, created_at, service_summary
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING_PAYMENT', 'PENDING', ?, ?, ?)
+      total_price_in_cents, deposit_in_cents, checkout_amount_in_cents, paid_amount_in_cents, payment_scope,
+      status, deposit_status, notes, created_at, service_summary, manual_customer_name, manual_customer_phone, manual_customer_email
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id,
     input.protocolCode,
-    input.customerId,
+    input.customerId ?? null,
     input.barberId,
     input.serviceId,
     input.scheduledAt,
     input.endAt,
     input.totalPriceInCents,
     input.depositInCents,
+    input.checkoutAmountInCents ?? input.depositInCents,
+    input.paidAmountInCents ?? 0,
+    input.paymentScope ?? "DEPOSIT",
+    input.status ?? "PENDING_PAYMENT",
+    input.depositStatus ?? "PENDING",
     input.notes,
     nowIso(),
     input.serviceSummary ?? null,
+    input.manualCustomerName ?? null,
+    input.manualCustomerPhone ?? null,
+    input.manualCustomerEmail ?? null,
   );
 
   return id;
@@ -651,7 +706,12 @@ export function markAppointmentPaid(id: string) {
 
   db.prepare(`
     UPDATE appointments
-    SET status = 'CONFIRMED', deposit_status = 'PAID'
+    SET status = 'CONFIRMED',
+        deposit_status = 'PAID',
+        paid_amount_in_cents = CASE
+          WHEN checkout_amount_in_cents IS NULL OR checkout_amount_in_cents = 0 THEN deposit_in_cents
+          ELSE checkout_amount_in_cents
+        END
     WHERE id = ?
   `).run(id);
 
@@ -685,9 +745,15 @@ export function listAppointmentsForAdmin(barberIds?: string[]) {
   if (barberIds?.length) {
     const placeholders = barberIds.map(() => "?").join(", ");
     return db.prepare(`
-      SELECT a.*, c.name as customer_name, c.email as customer_email, c.phone as customer_phone, c.avatar_path as customer_avatar_path, b.name as barber_name, COALESCE(a.service_summary, s.name) as service_name
+      SELECT a.*,
+             COALESCE(c.name, a.manual_customer_name) as customer_name,
+             COALESCE(c.email, a.manual_customer_email) as customer_email,
+             COALESCE(c.phone, a.manual_customer_phone) as customer_phone,
+             c.avatar_path as customer_avatar_path,
+             b.name as barber_name,
+             COALESCE(a.service_summary, s.name) as service_name
       FROM appointments a
-      JOIN users c ON c.id = a.customer_id
+      LEFT JOIN users c ON c.id = a.customer_id
       JOIN users b ON b.id = a.barber_id
       JOIN services s ON s.id = a.service_id
       WHERE a.barber_id IN (${placeholders})
@@ -696,9 +762,15 @@ export function listAppointmentsForAdmin(barberIds?: string[]) {
   }
 
   return db.prepare(`
-    SELECT a.*, c.name as customer_name, c.email as customer_email, c.phone as customer_phone, c.avatar_path as customer_avatar_path, b.name as barber_name, COALESCE(a.service_summary, s.name) as service_name
+    SELECT a.*,
+           COALESCE(c.name, a.manual_customer_name) as customer_name,
+           COALESCE(c.email, a.manual_customer_email) as customer_email,
+           COALESCE(c.phone, a.manual_customer_phone) as customer_phone,
+           c.avatar_path as customer_avatar_path,
+           b.name as barber_name,
+           COALESCE(a.service_summary, s.name) as service_name
     FROM appointments a
-    JOIN users c ON c.id = a.customer_id
+    LEFT JOIN users c ON c.id = a.customer_id
     JOIN users b ON b.id = a.barber_id
     JOIN services s ON s.id = a.service_id
     ORDER BY a.scheduled_at ASC
@@ -832,14 +904,46 @@ export function updateUserRoleAndStatus(input: { userId: string; role: string; i
 
 export function listPendingAppointmentsForOwner() {
   return db.prepare(`
-    SELECT a.*, c.name as customer_name, c.email as customer_email, c.phone as customer_phone, b.name as barber_name, COALESCE(a.service_summary, s.name) as service_name
+    SELECT a.*,
+           COALESCE(c.name, a.manual_customer_name) as customer_name,
+           COALESCE(c.email, a.manual_customer_email) as customer_email,
+           COALESCE(c.phone, a.manual_customer_phone) as customer_phone,
+           b.name as barber_name,
+           COALESCE(a.service_summary, s.name) as service_name
     FROM appointments a
-    JOIN users c ON c.id = a.customer_id
+    LEFT JOIN users c ON c.id = a.customer_id
     JOIN users b ON b.id = a.barber_id
     JOIN services s ON s.id = a.service_id
     WHERE a.deposit_status = 'PENDING'
     ORDER BY a.created_at DESC
   `).all() as AppointmentRecord[];
+}
+
+export function updateAppointmentCheckoutScope(input: {
+  appointmentId: string;
+  customerId: string;
+  paymentScope: "DEPOSIT" | "FULL";
+}) {
+  const appointment = db.prepare(`
+    SELECT *
+    FROM appointments
+    WHERE id = ? AND customer_id = ?
+  `).get(input.appointmentId, input.customerId) as AppointmentRecord | undefined;
+
+  if (!appointment) {
+    return null;
+  }
+
+  const checkoutAmountInCents =
+    input.paymentScope === "FULL" ? appointment.total_price_in_cents : appointment.deposit_in_cents;
+
+  db.prepare(`
+    UPDATE appointments
+    SET payment_scope = ?, checkout_amount_in_cents = ?
+    WHERE id = ?
+  `).run(input.paymentScope, checkoutAmountInCents, input.appointmentId);
+
+  return getAppointmentById(input.appointmentId);
 }
 
 export function listLeads() {

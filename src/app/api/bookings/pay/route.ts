@@ -1,7 +1,7 @@
 import { isRedirectError } from "next/dist/client/components/redirect-error";
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
-import { getAppointmentById, getSiteSetting } from "@/lib/db";
+import { getAppointmentById, getSiteSetting, updateAppointmentCheckoutScope } from "@/lib/db";
 import { getInfinitePayCheckoutConfig, createInfinitePayCheckoutLink } from "@/lib/integrations/infinitepay";
 
 function appendPaymentStatus(url: string, status: string) {
@@ -15,6 +15,7 @@ export async function POST(request: Request) {
   const formData = await request.formData();
   const appointmentId = String(formData.get("appointmentId") || "");
   const returnTo = String(formData.get("returnTo") || "/cliente/minha-area#protocolos");
+  const paymentScope = String(formData.get("paymentScope") || "DEPOSIT") === "FULL" ? "FULL" : "DEPOSIT";
   const appointment = getAppointmentById(appointmentId);
 
   if (!appointment || appointment.customer_id !== user.id) {
@@ -23,6 +24,16 @@ export async function POST(request: Request) {
 
   if (appointment.deposit_status === "PAID") {
     redirect(appendPaymentStatus(returnTo, "success"));
+  }
+
+  const updatedAppointment = updateAppointmentCheckoutScope({
+    appointmentId,
+    customerId: user.id,
+    paymentScope,
+  });
+
+  if (!updatedAppointment) {
+    redirect("/cliente/minha-area");
   }
 
   const site = getSiteSetting();
@@ -42,11 +53,14 @@ export async function POST(request: Request) {
       items: [
         {
           quantity: 1,
-          price: appointment.deposit_in_cents,
-          description: `Sinal da reserva - ${appointment.service_summary || "Reserva Dommus"}`,
+          price: updatedAppointment.checkout_amount_in_cents || updatedAppointment.deposit_in_cents,
+          description:
+            paymentScope === "FULL"
+              ? `Pagamento da reserva - ${updatedAppointment.service_summary || "Reserva Dommus"}`
+              : `Sinal da reserva - ${updatedAppointment.service_summary || "Reserva Dommus"}`,
         },
       ],
-      orderNsu: appointment.protocol_code,
+      orderNsu: updatedAppointment.protocol_code,
       redirectUrl,
       webhookUrl,
       customer: {

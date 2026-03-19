@@ -56,11 +56,14 @@ export default async function AdminPage({ searchParams }: { searchParams: Search
     .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime());
 
   const totalClientsToday = appointments.length;
-  const totalReceivedToday = appointments.reduce((sum, item) => sum + item.deposit_in_cents, 0);
+  const totalReceivedToday = appointments.reduce(
+    (sum, item) => sum + (item.paid_amount_in_cents || item.deposit_in_cents),
+    0,
+  );
   const selectedMonth = format(new Date(`${selectedDate}T12:00:00`), "yyyy-MM");
   const totalReceivedMonth = allPaidAppointments
     .filter((appointment) => format(new Date(appointment.scheduled_at), "yyyy-MM") === selectedMonth)
-    .reduce((sum, item) => sum + item.deposit_in_cents, 0);
+    .reduce((sum, item) => sum + (item.paid_amount_in_cents || item.deposit_in_cents), 0);
 
   return (
     <AppShell
@@ -69,12 +72,20 @@ export default async function AdminPage({ searchParams }: { searchParams: Search
       myAreaHref="/admin"
       hideAdminLinks
       secondaryNav={
-        <Link
-          href="/admin/fechar-dia"
-          className="rounded-full border border-amber-300/40 bg-amber-300/12 px-4 py-3 text-center font-medium text-amber-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_10px_24px_rgba(210,178,124,0.08)] transition hover:border-amber-300/60 hover:bg-amber-300/18 sm:px-4 sm:py-2"
-        >
-          Fechar dia ou horário
-        </Link>
+        <>
+          <Link
+            href="/admin/agendamento-manual"
+            className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-3 text-center font-medium text-stone-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition hover:border-amber-300/50 hover:bg-amber-300/10 sm:px-4 sm:py-2"
+          >
+            Agendamento manual
+          </Link>
+          <Link
+            href="/admin/fechar-dia"
+            className="rounded-full border border-amber-300/40 bg-amber-300/12 px-4 py-3 text-center font-medium text-amber-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_10px_24px_rgba(210,178,124,0.08)] transition hover:border-amber-300/60 hover:bg-amber-300/18 sm:px-4 sm:py-2"
+          >
+            Fechar dia ou horário
+          </Link>
+        </>
       }
     >
       <div className="grid gap-5 sm:gap-6">
@@ -159,7 +170,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Search
                       </div>
                     </div>
                     <div className="self-start rounded-full border border-emerald-400/55 bg-emerald-400/12 px-4 py-2 text-sm font-semibold text-emerald-200 shadow-[0_0_18px_rgba(61,220,132,0.18)] sm:shrink-0">
-                      {formatMoney(appointment.deposit_in_cents)}
+                      {formatMoney(appointment.paid_amount_in_cents || appointment.deposit_in_cents)}
                     </div>
                   </div>
 

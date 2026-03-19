@@ -22,7 +22,7 @@ export async function POST(request: Request) {
   }
 
   const updated = markAppointmentPaid(appointment.id);
-  if (updated) {
+  if (updated && appointment.customer_id) {
     convertLeadsForUser(appointment.customer_id);
   }
 
