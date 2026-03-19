@@ -153,6 +153,8 @@ export function OwnerDashboardClient({
 }: Props) {
   const [allUsers, setAllUsers] = useState(users);
   const [serviceList, setServiceList] = useState(services);
+  const [pendingList, setPendingList] = useState(pendingAppointments);
+  const [leadList, setLeadList] = useState(leads);
   const [siteOpen, setSiteOpen] = useState(site.is_open ? "true" : "false");
   const [maintenanceMessage, setMaintenanceMessage] = useState(site.maintenance_message);
   const [siteSaving, setSiteSaving] = useState(false);
@@ -162,6 +164,8 @@ export function OwnerDashboardClient({
   const [customerNotice, setCustomerNotice] = useState("");
   const [savingUserId, setSavingUserId] = useState<string | null>(null);
   const [serviceSavingId, setServiceSavingId] = useState<string | null>(null);
+  const [removingAppointmentId, setRemovingAppointmentId] = useState<string | null>(null);
+  const [removingLeadId, setRemovingLeadId] = useState<string | null>(null);
   const [priceInputs, setPriceInputs] = useState<Record<string, string>>(
     Object.fromEntries(services.map((service) => [service.id, (service.price_in_cents / 100).toFixed(2)])),
   );
@@ -237,13 +241,33 @@ export function OwnerDashboardClient({
     }
   };
 
+  const removePendingAppointment = async (appointmentId: string) => {
+    try {
+      setRemovingAppointmentId(appointmentId);
+      await postJson("/api/owner/appointments/remove", { appointmentId });
+      setPendingList((current) => current.filter((appointment) => appointment.id !== appointmentId));
+    } finally {
+      setRemovingAppointmentId(null);
+    }
+  };
+
+  const removeLead = async (leadId: string) => {
+    try {
+      setRemovingLeadId(leadId);
+      await postJson("/api/owner/leads/remove", { leadId });
+      setLeadList((current) => current.filter((lead) => lead.id !== leadId));
+    } finally {
+      setRemovingLeadId(null);
+    }
+  };
+
   return (
     <div className="grid gap-6">
       <div className="grid gap-4 md:grid-cols-4">
         <StatCard label="Sistema" value={siteOpen === "true" ? "Liberado" : "Bloqueado"} helper="Bloqueio com mensagem na tela." />
         <StatCard label="Usuarios" value={`${allUsers.length}`} helper="Total de contas cadastradas." />
-        <StatCard label="Pendentes" value={`${pendingAppointments.length}`} helper="Reservas aguardando sinal." />
-        <StatCard label="Leads" value={`${leads.length}`} helper="Clientes que iniciaram e nao converteram." />
+        <StatCard label="Pendentes" value={`${pendingList.length}`} helper="Reservas aguardando sinal." />
+        <StatCard label="Leads" value={`${leadList.length}`} helper="Clientes que iniciaram e nao converteram." />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[0.7fr_1.3fr]">
@@ -502,18 +526,32 @@ export function OwnerDashboardClient({
           <p className="text-xs uppercase tracking-[0.45em] text-amber-200/60">Check-in nao concluido</p>
           <h2 className="mt-3 text-2xl text-amber-50 sm:text-3xl">Relatorio para conversao</h2>
           <div className="mt-6 space-y-4">
-            {pendingAppointments.map((appointment) => (
-              <div key={appointment.id} className="rounded-[24px] border border-white/10 bg-black/15 p-5">
-                <p className="text-lg text-amber-50">{appointment.customer_name}</p>
-                <p className="mt-2 text-sm text-stone-300">
-                  {appointment.customer_phone} - {appointment.customer_email}
-                </p>
-                <p className="mt-2 text-sm text-stone-400">
-                  {appointment.service_name} com {appointment.barber_name}
-                </p>
-                <p className="mt-2 text-sm text-amber-100">{formatDateTime(appointment.created_at)}</p>
+            {pendingList.length ? (
+              pendingList.map((appointment) => (
+                <div key={appointment.id} className="rounded-[24px] border border-white/10 bg-black/15 p-5">
+                  <p className="text-lg text-amber-50">{appointment.customer_name}</p>
+                  <p className="mt-2 text-sm text-stone-300">
+                    {appointment.customer_phone} - {appointment.customer_email}
+                  </p>
+                  <p className="mt-2 text-sm text-stone-400">
+                    {appointment.service_name} com {appointment.barber_name}
+                  </p>
+                  <p className="mt-2 text-sm text-amber-100">{formatDateTime(appointment.created_at)}</p>
+                  <button
+                    type="button"
+                    disabled={removingAppointmentId === appointment.id}
+                    onClick={() => void removePendingAppointment(appointment.id)}
+                    className="mt-4 rounded-2xl border border-rose-400/50 px-4 py-2 text-sm font-semibold text-rose-100 transition hover:bg-rose-500/10 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {removingAppointmentId === appointment.id ? "Excluindo..." : "Excluir do relatorio"}
+                  </button>
+                </div>
+              ))
+            ) : (
+              <div className="rounded-[24px] border border-dashed border-white/10 bg-black/15 p-5 text-sm text-stone-400">
+                Nenhum registro pendente no relatorio de conversao.
               </div>
-            ))}
+            )}
           </div>
         </section>
 
@@ -521,16 +559,30 @@ export function OwnerDashboardClient({
           <p className="text-xs uppercase tracking-[0.45em] text-amber-200/60">Leads abandonados</p>
           <h2 className="mt-3 text-2xl text-amber-50 sm:text-3xl">Interesse sem finalizacao</h2>
           <div className="mt-6 space-y-4">
-            {leads.map((lead) => (
-              <div key={lead.id} className="rounded-[24px] border border-white/10 bg-black/15 p-5">
-                <p className="text-lg text-amber-50">{lead.user_name || "Usuario nao identificado"}</p>
-                <p className="mt-2 text-sm text-stone-300">
-                  {lead.user_phone || "Sem telefone"} - {lead.user_email || "Sem e-mail"}
-                </p>
-                <p className="mt-2 text-sm text-stone-400">{lead.service_name || "Servico ainda nao escolhido"}</p>
-                <p className="mt-2 text-sm text-amber-100">{lead.last_step}</p>
+            {leadList.length ? (
+              leadList.map((lead) => (
+                <div key={lead.id} className="rounded-[24px] border border-white/10 bg-black/15 p-5">
+                  <p className="text-lg text-amber-50">{lead.user_name || "Usuario nao identificado"}</p>
+                  <p className="mt-2 text-sm text-stone-300">
+                    {lead.user_phone || "Sem telefone"} - {lead.user_email || "Sem e-mail"}
+                  </p>
+                  <p className="mt-2 text-sm text-stone-400">{lead.service_name || "Servico ainda nao escolhido"}</p>
+                  <p className="mt-2 text-sm text-amber-100">{lead.last_step}</p>
+                  <button
+                    type="button"
+                    disabled={removingLeadId === lead.id}
+                    onClick={() => void removeLead(lead.id)}
+                    className="mt-4 rounded-2xl border border-rose-400/50 px-4 py-2 text-sm font-semibold text-rose-100 transition hover:bg-rose-500/10 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {removingLeadId === lead.id ? "Excluindo..." : "Excluir lead"}
+                  </button>
+                </div>
+              ))
+            ) : (
+              <div className="rounded-[24px] border border-dashed border-white/10 bg-black/15 p-5 text-sm text-stone-400">
+                Nenhum lead restante para limpar.
               </div>
-            ))}
+            )}
           </div>
         </section>
       </div>

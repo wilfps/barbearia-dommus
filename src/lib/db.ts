@@ -860,6 +860,25 @@ export function cancelAppointmentById(id: string) {
   `).run(id);
 }
 
+export function deleteAppointmentById(id: string) {
+  db.prepare(`
+    DELETE FROM reminder_logs
+    WHERE appointment_id = ?
+  `).run(id);
+
+  db.prepare(`
+    DELETE FROM appointments
+    WHERE id = ?
+  `).run(id);
+}
+
+export function deleteLeadById(id: string) {
+  db.prepare(`
+    DELETE FROM abandoned_leads
+    WHERE id = ?
+  `).run(id);
+}
+
 
 
 

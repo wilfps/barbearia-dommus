@@ -1,4 +1,4 @@
-import Image from "next/image";
+﻿import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Sparkles } from "lucide-react";
@@ -52,19 +52,20 @@ export default async function Home({ searchParams }: { searchParams: SearchParam
             </div>
 
             <h1 className="mt-6 max-w-4xl text-center text-4xl leading-tight text-amber-50 sm:text-5xl md:text-6xl lg:text-left lg:text-7xl">
-              A MAIOR BARBEARIA DE ITU E REGIÃO
+              Barbearia Dommus
             </h1>
 
             <p className="mt-5 max-w-3xl text-center text-lg leading-8 text-amber-100/90 lg:text-left">
-              Tradição, estilo e atendimento de alto nível para quem busca uma experiência premium de verdade.
+              Não é só uma barbearia. É padrão.
             </p>
 
             <p className="mt-5 max-w-3xl text-center text-base leading-7 text-stone-300 sm:text-lg sm:leading-8 lg:text-left">
-              A Dommus Barbearia nasceu para oferecer mais do que um corte: aqui cada cliente vive um atendimento pensado nos detalhes, com ambiente sofisticado, cuidado no acabamento e um padrão de serviço à altura da maior barbearia de Itu e Região.
+              A Dommus foi criada para quem não aceita o básico. Aqui, cada atendimento é pensado nos mínimos detalhes
+              com precisão, presença e um nível de cuidado que você percebe desde o primeiro momento.
             </p>
 
             <p className="mt-5 max-w-3xl text-center text-base leading-7 text-stone-300 sm:text-lg sm:leading-8 lg:text-left">
-              De cortes clássicos a experiências completas de barboterapia, a Dommus combina presença, técnica e organização para entregar conforto, confiança e uma imagem forte em cada atendimento.
+              Porque quando se trata da sua imagem, o padrão é sempre o mais alto.
             </p>
           </div>
         </div>
@@ -87,12 +88,12 @@ export default async function Home({ searchParams }: { searchParams: SearchParam
             </div>
             {params.reset ? (
               <p className="mt-4 text-sm text-emerald-300">
-                Senha redefinida com sucesso. Agora você já pode entrar.
+                Senha redefinida com sucesso. Agora vocÃª jÃ¡ pode entrar.
               </p>
             ) : null}
             {isBlocked || params.blocked ? (
               <p className="mt-4 text-sm text-amber-100">
-                As funcionalidades estão temporariamente travadas.
+                As funcionalidades estÃ£o temporariamente travadas.
               </p>
             ) : null}
           </div>

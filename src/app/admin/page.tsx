@@ -1,6 +1,7 @@
 ﻿import Link from "next/link";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { AdminCustomerSearch } from "@/components/admin-customer-search";
 import { AdminDateNavigation } from "@/components/admin-date-navigation";
 import { AppShell } from "@/components/shell";
 import { requireRoles } from "@/lib/auth";
@@ -8,7 +9,7 @@ import { getPrimaryBarber, listAppointmentsForAdmin, listBirthdayCustomersOnDate
 import { buildWhatsAppLink, formatMoney } from "@/lib/format";
 import { buildBirthdayMessage, getWhatsAppIntegrationConfig } from "@/lib/integrations/whatsapp";
 
-type SearchParams = Promise<{ date?: string; customerSearch?: string }>;
+type SearchParams = Promise<{ date?: string }>;
 
 function toIsoDate(value?: string) {
   if (!value) return null;
@@ -40,12 +41,11 @@ export default async function AdminPage({ searchParams }: { searchParams: Search
   await requireRoles(["ADMIN", "BARBER", "OWNER"]);
   const params = await searchParams;
   const selectedDate = normalizeDateInput(params.date);
-  const customerSearch = params.customerSearch?.trim() ?? "";
   const selectedDateLabel = getSelectedDateLabel(selectedDate);
   const primaryBarber = getPrimaryBarber();
   const birthdayCustomers = listBirthdayCustomersOnDate(selectedDate);
   const whatsappConfig = getWhatsAppIntegrationConfig();
-  const customerResults = customerSearch ? listCustomers(customerSearch) : [];
+  const customerResults = listCustomers();
 
   const allPaidAppointments = listAppointmentsForAdmin(primaryBarber ? [primaryBarber.id] : undefined)
     .filter((appointment) => appointment.status === "CONFIRMED" && appointment.deposit_status === "PAID");
@@ -198,48 +198,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Search
           </div>
         </section>
 
-        <section className="glass rounded-[24px] p-4 sm:rounded-[30px] sm:p-5">
-          <p className="text-xs uppercase tracking-[0.45em] text-amber-200/60">Clientes</p>
-          <h2 className="mt-3 text-2xl text-amber-50 sm:text-3xl">Pesquisar cliente</h2>
-          <p className="mt-2 text-sm text-stone-300">
-            Busque por nome ou telefone para encontrar rapidamente um cliente cadastrado.
-          </p>
-
-          <form method="get" action="/admin" className="mt-5 flex flex-col gap-3 sm:flex-row">
-            <input type="hidden" name="date" value={selectedDate} />
-            <input
-              name="customerSearch"
-              defaultValue={customerSearch}
-              placeholder="Pesquisar por nome ou telefone"
-              className="flex-1 rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-stone-100 placeholder:text-stone-500"
-            />
-            <button type="submit" className="rounded-2xl bg-amber-300 px-5 py-3 font-semibold text-stone-950 transition hover:bg-amber-200">
-              Pesquisar
-            </button>
-          </form>
-
-          <div className="mt-5 space-y-3">
-            {customerSearch ? (
-              customerResults.length ? (
-                customerResults.map((customer) => (
-                  <div key={customer.id} className="rounded-[22px] border border-white/10 bg-black/15 p-4">
-                    <p className="text-lg text-amber-50">{customer.name}</p>
-                    <p className="mt-1 text-sm text-stone-300">{customer.phone}</p>
-                    <p className="mt-1 text-sm text-stone-400">{customer.email}</p>
-                  </div>
-                ))
-              ) : (
-                <div className="rounded-[22px] border border-dashed border-white/10 bg-black/15 p-4 text-sm text-stone-400">
-                  Nenhum cliente encontrado com essa pesquisa.
-                </div>
-              )
-            ) : (
-              <div className="rounded-[22px] border border-dashed border-white/10 bg-black/15 p-4 text-sm text-stone-400">
-                Digite um nome ou telefone para localizar um cliente.
-              </div>
-            )}
-          </div>
-        </section>
+        <AdminCustomerSearch customers={customerResults} />
 
         <section className="glass rounded-[24px] p-4 sm:rounded-[30px] sm:p-5">
           <p className="text-xs uppercase tracking-[0.45em] text-amber-200/60">Aniversariantes</p>
@@ -280,3 +239,5 @@ export default async function AdminPage({ searchParams }: { searchParams: Search
     </AppShell>
   );
 }
+
+
