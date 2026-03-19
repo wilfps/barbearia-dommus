@@ -3,7 +3,7 @@
 import { format, isValid, parse } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { getQuickWeekDates } from "@/lib/quick-dates";
 import { formatMoney } from "@/lib/format";
 
@@ -17,6 +17,8 @@ type ServiceItem = {
 type SlotState = {
   time: string;
   status: "available" | "booked" | "blocked" | "past";
+  appointmentId?: string | null;
+  blockedSlotId?: string | null;
 };
 
 export function AdminManualBooking({
@@ -47,6 +49,8 @@ export function AdminManualBooking({
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [slotNotice, setSlotNotice] = useState("");
   const [isBlockedDay, setIsBlockedDay] = useState(false);
+  const [confirmingSlot, setConfirmingSlot] = useState<SlotState | null>(null);
+  const [removingSlot, setRemovingSlot] = useState(false);
 
   const selectedService = useMemo(
     () => services.find((service) => service.id === serviceId),
@@ -63,55 +67,47 @@ export function AdminManualBooking({
     [],
   );
 
-  useEffect(() => {
+  const loadSlots = useCallback(async () => {
     if (!selectedDate || !serviceId) {
       return;
     }
 
-    let active = true;
-    const loadSlots = async () => {
-      setLoadingSlots(true);
-      setSlotNotice("");
+    setLoadingSlots(true);
+    setSlotNotice("");
 
-      try {
-        const response = await fetch(
-          `/api/admin/manual-bookings/availability?date=${encodeURIComponent(selectedDate)}&serviceId=${encodeURIComponent(serviceId)}`,
-        );
+    try {
+      const response = await fetch(
+        `/api/admin/manual-bookings/availability?date=${encodeURIComponent(selectedDate)}&serviceId=${encodeURIComponent(serviceId)}`,
+      );
 
-        if (!response.ok) {
-          throw new Error("Falha ao carregar horários.");
-        }
-
-        const payload = (await response.json()) as { slots: SlotState[]; isBlockedDay: boolean };
-        if (!active) return;
-
-        setSlots(payload.slots);
-        setIsBlockedDay(payload.isBlockedDay);
-        setSelectedTime("");
-
-        if (payload.isBlockedDay) {
-          setSlotNotice("Esse dia está fechado pelo barbeiro.");
-        } else if (!payload.slots.some((slot) => slot.status === "available")) {
-          setSlotNotice("Nenhum horário livre para essa combinação.");
-        }
-      } catch {
-        if (!active) return;
-        setSlots([]);
-        setSelectedTime("");
-        setSlotNotice("Não foi possível carregar os horários agora.");
-      } finally {
-        if (active) {
-          setLoadingSlots(false);
-        }
+      if (!response.ok) {
+        throw new Error("Falha ao carregar horários.");
       }
-    };
 
-    void loadSlots();
+      const payload = (await response.json()) as { slots: SlotState[]; isBlockedDay: boolean };
+      setSlots(payload.slots);
+      setIsBlockedDay(payload.isBlockedDay);
+      setSelectedTime("");
+      setConfirmingSlot(null);
 
-    return () => {
-      active = false;
-    };
+      if (payload.isBlockedDay) {
+        setSlotNotice("Esse dia está fechado pelo barbeiro.");
+      } else if (!payload.slots.some((slot) => slot.status === "available")) {
+        setSlotNotice("Nenhum horário livre para essa combinação.");
+      }
+    } catch {
+      setSlots([]);
+      setSelectedTime("");
+      setConfirmingSlot(null);
+      setSlotNotice("Não foi possível carregar os horários agora.");
+    } finally {
+      setLoadingSlots(false);
+    }
   }, [selectedDate, serviceId]);
+
+  useEffect(() => {
+    void loadSlots();
+  }, [loadSlots]);
 
   function updateDateFromIso(isoDate: string) {
     setSelectedDate(isoDate);
@@ -124,6 +120,37 @@ export function AdminManualBooking({
     const parsed = parse(displayDate, "dd/MM/yyyy", new Date());
     if (isValid(parsed)) {
       setSelectedDate(format(parsed, "yyyy-MM-dd"));
+    }
+  }
+
+  async function handleRemoveBookedSlot() {
+    if (!confirmingSlot?.appointmentId) {
+      return;
+    }
+
+    setRemovingSlot(true);
+
+    try {
+      const response = await fetch("/api/admin/appointments/remove", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ appointmentId: confirmingSlot.appointmentId }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Falha ao excluir o horário.");
+      }
+
+      const releasedTime = confirmingSlot.time;
+      await loadSlots();
+      setSlotNotice(`Horário ${releasedTime} liberado com sucesso.`);
+    } catch (error) {
+      console.error(error);
+      window.alert("Não conseguimos excluir esse horário agora. Tente novamente.");
+    } finally {
+      setRemovingSlot(false);
     }
   }
 
@@ -250,8 +277,18 @@ export function AdminManualBooking({
                   <button
                     key={slot.time}
                     type="button"
-                    disabled={slot.status !== "available"}
-                    onClick={() => setSelectedTime(slot.time)}
+                    disabled={slot.status === "past" || slot.status === "blocked"}
+                    onClick={() => {
+                      if (slot.status === "available") {
+                        setSelectedTime(slot.time);
+                        setConfirmingSlot(null);
+                        return;
+                      }
+
+                      if (slot.status === "booked" && slot.appointmentId) {
+                        setConfirmingSlot(slot);
+                      }
+                    }}
                     className={`rounded-2xl border px-4 py-3 text-sm transition ${
                       selectedTime === slot.time
                         ? "border-amber-300 bg-amber-300/12 text-amber-100"
@@ -271,6 +308,28 @@ export function AdminManualBooking({
                   </button>
                 ))}
               </div>
+
+              {confirmingSlot?.status === "booked" && confirmingSlot.appointmentId ? (
+                <div className="mt-4 flex flex-wrap items-center gap-3 rounded-[22px] border border-red-500/25 bg-red-500/10 p-4 text-sm">
+                  <p className="text-red-100">Tem certeza que deseja excluir o horário {confirmingSlot.time} e liberar a vaga?</p>
+                  <button
+                    type="button"
+                    onClick={() => void handleRemoveBookedSlot()}
+                    disabled={removingSlot}
+                    className="rounded-full border border-red-400/35 bg-red-500/15 px-4 py-2 font-semibold text-red-100 transition hover:bg-red-500/22 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {removingSlot ? "Excluindo..." : "Sim"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmingSlot(null)}
+                    disabled={removingSlot}
+                    className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 font-semibold text-stone-200 transition hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    Não
+                  </button>
+                </div>
+              ) : null}
 
               {!slots.length || slotNotice ? (
                 <div className="mt-4 rounded-[22px] border border-dashed border-white/10 bg-black/15 p-5 text-sm text-stone-400">

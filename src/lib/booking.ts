@@ -1,5 +1,6 @@
-import { addMinutes, endOfDay, format, isBefore, setHours, setMinutes, startOfDay } from "date-fns";
+import { addMinutes, format, isBefore } from "date-fns";
 import type { AppointmentRecord, BlockedSlotRecord, ServiceRecord, UserRecord } from "@/lib/db";
+import { formatBrazilDateInput, toBrazilDateObject } from "@/lib/brazil-time";
 
 type BarberWithProfile = UserRecord;
 type SlotStatus = "available" | "booked" | "blocked" | "past";
@@ -7,6 +8,8 @@ type SlotStatus = "available" | "booked" | "blocked" | "past";
 export type ScheduleSlot = {
   time: Date;
   status: SlotStatus;
+  appointmentId?: string;
+  blockedSlotId?: string;
 };
 
 export function generateProtocolCode() {
@@ -59,25 +62,26 @@ export function listScheduleSlots({
   const startsAtHour = barber.starts_at_hour ?? 9;
   const endsAtHour = barber.ends_at_hour ?? 20;
   const intervalMinutes = barber.interval_minutes ?? 30;
+  const dateIso = formatBrazilDateInput(date);
 
-  let cursor = setMinutes(setHours(startOfDay(date), startsAtHour), 0);
-  const finish = setMinutes(setHours(endOfDay(date), endsAtHour), 0);
-
-  while (isBefore(cursor, finish)) {
+  for (let minutes = startsAtHour * 60; minutes < endsAtHour * 60; minutes += intervalMinutes) {
+    const hour = String(Math.floor(minutes / 60)).padStart(2, "0");
+    const minute = String(minutes % 60).padStart(2, "0");
+    const cursor = toBrazilDateObject(dateIso, `${hour}:${minute}`);
     const slotEnd = addMinutes(cursor, service.duration_minutes);
-    const hasAppointment = appointments.some(
+    const overlappingAppointment = appointments.find(
       (appointment) =>
         cursor < new Date(appointment.end_at) && slotEnd > new Date(appointment.scheduled_at),
     );
-    const isBlocked = blockedSlots.some(
+    const overlappingBlock = blockedSlots.find(
       (blocked) => cursor < new Date(blocked.ends_at) && slotEnd > new Date(blocked.starts_at),
     );
     const isPast = isBefore(cursor, new Date());
 
     let status: SlotStatus = "available";
-    if (hasAppointment) {
+    if (overlappingAppointment) {
       status = "booked";
-    } else if (isBlocked) {
+    } else if (overlappingBlock) {
       status = "blocked";
     } else if (isPast) {
       status = "past";
@@ -86,9 +90,9 @@ export function listScheduleSlots({
     slots.push({
       time: cursor,
       status,
+      appointmentId: overlappingAppointment?.id,
+      blockedSlotId: overlappingBlock?.id,
     });
-
-    cursor = addMinutes(cursor, intervalMinutes);
   }
 
   return slots;

@@ -42,6 +42,8 @@ export async function GET(request: Request) {
   }).map((slot) => ({
     time: formatBrazilTime(slot.time),
     status: slot.status,
+    appointmentId: slot.appointmentId ?? null,
+    blockedSlotId: slot.blockedSlotId ?? null,
   }));
 
   return Response.json({
