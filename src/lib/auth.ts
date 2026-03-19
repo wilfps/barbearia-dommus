@@ -77,8 +77,7 @@ export async function requireUser() {
 
   const site = getSiteSetting();
   if (!site.is_open && user.role !== "OWNER") {
-    await clearSession();
-    redirect("/?blocked=1");
+    redirect("/");
   }
 
   return user;
