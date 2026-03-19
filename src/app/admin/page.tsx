@@ -47,13 +47,20 @@ export default async function AdminPage({ searchParams }: { searchParams: Search
   const whatsappConfig = getWhatsAppIntegrationConfig();
   const customerResults = customerSearch ? listCustomers(customerSearch) : [];
 
-  const appointments = listAppointmentsForAdmin(primaryBarber ? [primaryBarber.id] : undefined)
+  const allPaidAppointments = listAppointmentsForAdmin(primaryBarber ? [primaryBarber.id] : undefined)
+    .filter((appointment) => appointment.status === "CONFIRMED" && appointment.deposit_status === "PAID");
+
+  const appointments = allPaidAppointments
     .filter((appointment) => appointment.status === "CONFIRMED" && appointment.deposit_status === "PAID")
     .filter((appointment) => isSameLocalDay(appointment.scheduled_at, selectedDate))
     .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime());
 
   const totalClientsToday = appointments.length;
   const totalReceivedToday = appointments.reduce((sum, item) => sum + item.deposit_in_cents, 0);
+  const selectedMonth = format(new Date(`${selectedDate}T12:00:00`), "yyyy-MM");
+  const totalReceivedMonth = allPaidAppointments
+    .filter((appointment) => format(new Date(appointment.scheduled_at), "yyyy-MM") === selectedMonth)
+    .reduce((sum, item) => sum + item.deposit_in_cents, 0);
 
   return (
     <AppShell
@@ -80,7 +87,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Search
           <AdminDateNavigation selectedDate={selectedDate} />
         </section>
 
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid gap-4 lg:grid-cols-3">
           <div className="rounded-[22px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.03))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] sm:rounded-[28px] sm:p-5">
             <p className="text-sm text-stone-400">Clientes do dia</p>
             <p className="mt-3 text-3xl font-semibold text-amber-50">{totalClientsToday}</p>
@@ -94,6 +101,14 @@ export default async function AdminPage({ searchParams }: { searchParams: Search
             <p className="mt-3 text-3xl font-semibold text-amber-50">{formatMoney(totalReceivedToday)}</p>
             <div className="mt-4 rounded-[18px] border border-white/10 bg-black/10 px-4 py-3 text-sm text-stone-200">
               Gabriel Rodrigues - {formatMoney(totalReceivedToday)}
+            </div>
+          </div>
+
+          <div className="rounded-[22px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.03))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] sm:rounded-[28px] sm:p-5">
+            <p className="text-sm text-stone-400">Ganhos do mês</p>
+            <p className="mt-3 text-3xl font-semibold text-amber-50">{formatMoney(totalReceivedMonth)}</p>
+            <div className="mt-4 rounded-[18px] border border-white/10 bg-black/10 px-4 py-3 text-sm text-stone-200">
+              Gabriel Rodrigues - {formatMoney(totalReceivedMonth)}
             </div>
           </div>
         </div>
