@@ -1,3 +1,4 @@
+import { isRedirectError } from "next/dist/client/components/redirect-error";
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { getAppointmentById, getSiteSetting } from "@/lib/db";
@@ -56,7 +57,12 @@ export async function POST(request: Request) {
     });
 
     redirect(checkout.checkoutUrl);
-  } catch {
+  } catch (error) {
+    if (isRedirectError(error)) {
+      throw error;
+    }
+
+    console.error("InfinitePay checkout error:", error);
     redirect(appendPaymentStatus(returnTo, "checkout-error"));
   }
 }

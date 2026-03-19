@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { isRedirectError } from "next/dist/client/components/redirect-error";
 import { BirthDateInput } from "@/components/birth-date-input";
 import { AppShell } from "@/components/shell";
 import { StatCard } from "@/components/stat-card";
@@ -95,7 +96,12 @@ export default async function ClienteMinhaAreaPage({ searchParams }: { searchPar
       }
 
       redirect("/cliente/minha-area?payment=pending#checkout");
-    } catch {
+    } catch (error) {
+      if (isRedirectError(error)) {
+        throw error;
+      }
+
+      console.error("InfinitePay payment confirmation error:", error);
       redirect("/cliente/minha-area?payment=checkout-error#checkout");
     }
   }
