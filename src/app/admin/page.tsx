@@ -135,6 +135,12 @@ export default async function AdminPage({ searchParams }: { searchParams: Search
             <div className="mt-4 rounded-[18px] border border-white/10 bg-black/10 px-4 py-3 text-sm text-stone-200">
               Gabriel Rodrigues - {formatMoney(totalReceivedMonth)}
             </div>
+            <Link
+              href={`/admin/ganhos?date=${selectedDate}`}
+              className="mt-4 inline-flex rounded-full border border-amber-300/35 bg-amber-300/10 px-4 py-2 text-sm font-medium text-amber-100 transition hover:border-amber-300/60 hover:bg-amber-300/16"
+            >
+              Ver lista de ganhos
+            </Link>
           </div>
         </div>
 
