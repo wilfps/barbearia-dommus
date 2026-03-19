@@ -662,7 +662,7 @@ export function createAppointment(input: {
       id, protocol_code, customer_id, barber_id, service_id, scheduled_at, end_at,
       total_price_in_cents, deposit_in_cents, checkout_amount_in_cents, paid_amount_in_cents, payment_scope,
       status, deposit_status, notes, created_at, service_summary, manual_customer_name, manual_customer_phone, manual_customer_email
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id,
     input.protocolCode,
