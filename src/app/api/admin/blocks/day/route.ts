@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { requireRoles } from "@/lib/auth";
-import { createBlockedSlot, getPrimaryBarber } from "@/lib/db";
+import { clearDefaultBlockedDayReleased, createBlockedSlot, getPrimaryBarber } from "@/lib/db";
 import { getBrazilDayRange } from "@/lib/brazil-time";
 
 function parseBrazilianDate(value: string) {
@@ -24,6 +24,7 @@ export async function POST(request: Request) {
   }
 
   const { startIso, endIso } = getBrazilDayRange(date);
+  clearDefaultBlockedDayReleased(barber.id, date);
 
   createBlockedSlot({
     barberId: barber.id,

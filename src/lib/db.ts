@@ -3,7 +3,7 @@ import path from "node:path";
 import crypto from "node:crypto";
 import Database from "better-sqlite3";
 import bcrypt from "bcryptjs";
-import { toBrazilDateTimeIso } from "@/lib/brazil-time";
+import { formatBrazilDateInput, toBrazilDateTimeIso } from "@/lib/brazil-time";
 
 const defaultDbPath = path.join(process.cwd(), "data", "dommus.db");
 const dbPath = process.env.DB_PATH?.trim() || defaultDbPath;
@@ -212,6 +212,14 @@ function initDb() {
       ends_at TEXT NOT NULL,
       reason TEXT,
       created_at TEXT NOT NULL,
+      FOREIGN KEY(barber_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS released_default_blocked_days (
+      barber_id TEXT NOT NULL,
+      date_iso TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      PRIMARY KEY (barber_id, date_iso),
       FOREIGN KEY(barber_id) REFERENCES users(id) ON DELETE CASCADE
     );
 
@@ -840,14 +848,63 @@ export function createBlockedSlot(input: { barberId: string; startsAt: string; e
   `).run(createId("block"), input.barberId, input.startsAt, input.endsAt, input.reason, nowIso());
 }
 
+function isDefaultAutoBlockedDay(slot: Pick<BlockedSlotRecord, "starts_at" | "ends_at" | "reason">) {
+  const startsAt = new Date(slot.starts_at);
+  const endsAt = new Date(slot.ends_at);
+
+  return (
+    slot.reason?.includes("Fechado por padrao ate o barbeiro liberar") &&
+    startsAt.getUTCHours() === 3 &&
+    startsAt.getUTCMinutes() === 0 &&
+    endsAt.getUTCHours() === 2 &&
+    endsAt.getUTCMinutes() === 59
+  );
+}
+
+function markDefaultBlockedDayReleased(barberId: string, dateIso: string) {
+  db.prepare(`
+    INSERT OR REPLACE INTO released_default_blocked_days (barber_id, date_iso, created_at)
+    VALUES (?, ?, ?)
+  `).run(barberId, dateIso, nowIso());
+}
+
+export function clearDefaultBlockedDayReleased(barberId: string, dateIso: string) {
+  db.prepare(`
+    DELETE FROM released_default_blocked_days
+    WHERE barber_id = ? AND date_iso = ?
+  `).run(barberId, dateIso);
+}
+
 export function deleteBlockedSlotById(id: string) {
+  const slot = db.prepare(`
+    SELECT id, barber_id, starts_at, ends_at, reason
+    FROM blocked_slots
+    WHERE id = ?
+    LIMIT 1
+  `).get(id) as BlockedSlotRecord | undefined;
+
   db.prepare(`
     DELETE FROM blocked_slots
     WHERE id = ?
   `).run(id);
+
+  if (slot && isDefaultAutoBlockedDay(slot)) {
+    markDefaultBlockedDayReleased(slot.barber_id, formatBrazilDateInput(slot.starts_at));
+  }
 }
 
 export function ensureBlockedDay(barberId: string, dateIso: string, reason: string) {
+  const wasReleased = db.prepare(`
+    SELECT 1
+    FROM released_default_blocked_days
+    WHERE barber_id = ? AND date_iso = ?
+    LIMIT 1
+  `).get(barberId, dateIso);
+
+  if (wasReleased) {
+    return null;
+  }
+
   const startsAt = toBrazilDateTimeIso(dateIso, "00:00:00");
   const endsAt = toBrazilDateTimeIso(dateIso, "23:59:59");
 

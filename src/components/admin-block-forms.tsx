@@ -19,6 +19,9 @@ export function AdminBlockForms({
   const [dateDisplayValue, setDateDisplayValue] = useState(initialDate);
   const [startTimeValue, setStartTimeValue] = useState("09:00");
   const [endTimeValue, setEndTimeValue] = useState("09:30");
+  const [blockedSlotsState, setBlockedSlotsState] = useState(blockedSlots);
+  const [removingBlockId, setRemovingBlockId] = useState<string | null>(null);
+  const [removeError, setRemoveError] = useState("");
 
   const quickDates = useMemo(() => {
     return getQuickWeekDates(new Date()).map((date) => ({
@@ -43,7 +46,7 @@ export function AdminBlockForms({
 
   const allDayBlockedDates = useMemo(() => {
     return new Set(
-      blockedSlots
+      blockedSlotsState
         .filter((slot) => {
           const startsAt = parseISO(slot.starts_at);
           const endsAt = parseISO(slot.ends_at);
@@ -51,15 +54,15 @@ export function AdminBlockForms({
         })
         .map((slot) => format(parseISO(slot.starts_at), "dd/MM/yyyy")),
     );
-  }, [blockedSlots]);
+  }, [blockedSlotsState]);
 
   const selectedDayBlocks = useMemo(
-    () => blockedSlots.filter((slot) => isSameDay(parseISO(slot.starts_at), parse(dateDisplayValue, "dd/MM/yyyy", new Date()))),
-    [blockedSlots, dateDisplayValue],
+    () => blockedSlotsState.filter((slot) => isSameDay(parseISO(slot.starts_at), parse(dateDisplayValue, "dd/MM/yyyy", new Date()))),
+    [blockedSlotsState, dateDisplayValue],
   );
   const orderedBlockedSlots = useMemo(() => {
     const selectedDate = parse(dateDisplayValue, "dd/MM/yyyy", new Date());
-    return [...blockedSlots].sort((a, b) => {
+    return [...blockedSlotsState].sort((a, b) => {
       const aDate = parseISO(a.starts_at);
       const bDate = parseISO(b.starts_at);
       const aSelected = isValid(selectedDate) && isSameDay(aDate, selectedDate) ? 0 : 1;
@@ -67,7 +70,7 @@ export function AdminBlockForms({
       if (aSelected !== bSelected) return aSelected - bSelected;
       return aDate.getTime() - bDate.getTime();
     });
-  }, [blockedSlots, dateDisplayValue]);
+  }, [blockedSlotsState, dateDisplayValue]);
 
   function updateDate(displayDate: string) {
     setDateDisplayValue(displayDate);
@@ -82,6 +85,35 @@ export function AdminBlockForms({
     if (value >= endTimeValue) {
       const currentIndex = timeOptions.indexOf(value);
       setEndTimeValue(timeOptions[Math.min(currentIndex + 1, timeOptions.length - 1)] ?? value);
+    }
+  }
+
+  async function handleRemoveBlock(blockId: string) {
+    setRemovingBlockId(blockId);
+    setRemoveError("");
+
+    try {
+      const response = await fetch("/api/admin/blocks/remove", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-requested-with": "XMLHttpRequest",
+        },
+        body: JSON.stringify({
+          blockId,
+          date: dateDisplayValue,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Nao foi possivel tirar o bloqueio agora.");
+      }
+
+      setBlockedSlotsState((current) => current.filter((slot) => slot.id !== blockId));
+    } catch (error) {
+      setRemoveError(error instanceof Error ? error.message : "Nao foi possivel tirar o bloqueio agora.");
+    } finally {
+      setRemovingBlockId(null);
     }
   }
 
@@ -211,6 +243,11 @@ export function AdminBlockForms({
         </p>
 
         <div className="mt-5 grid gap-4">
+          {removeError ? (
+            <div className="rounded-[18px] border border-red-400/35 bg-red-500/10 px-4 py-3 text-sm text-red-100">
+              {removeError}
+            </div>
+          ) : null}
           {orderedBlockedSlots.length ? (
             orderedBlockedSlots.map((slot) => {
               const startsAt = parseISO(slot.starts_at);
@@ -245,14 +282,18 @@ export function AdminBlockForms({
                       </div>
                     </div>
 
-                    <form action="/api/admin/blocks/remove" method="post">
-                      <input type="hidden" name="blockId" value={slot.id} />
-                      <input type="hidden" name="date" value={dateDisplayValue} />
+                    <form
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        void handleRemoveBlock(slot.id);
+                      }}
+                    >
                       <button
                         type="submit"
+                        disabled={removingBlockId === slot.id}
                         className="rounded-[18px] border border-emerald-400/35 bg-emerald-500/10 px-4 py-3 font-semibold text-emerald-100 transition hover:bg-emerald-500/15"
                       >
-                        Tirar bloqueio
+                        {removingBlockId === slot.id ? "Tirando..." : "Tirar bloqueio"}
                       </button>
                     </form>
                   </div>
