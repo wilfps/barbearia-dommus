@@ -167,29 +167,29 @@ export default async function Home({ searchParams }: { searchParams: SearchParam
           </div>
         </section>
 
-        <section id="servicos" className="mt-6 rounded-[34px] border border-amber-200/10 bg-[#120d0b]/92 px-6 py-8 shadow-[0_30px_100px_rgba(0,0,0,0.42)] sm:px-8 sm:py-10">
+        <section id="servicos" className="mt-6 rounded-[34px] border border-amber-200/10 bg-[#120d0b]/92 px-4 py-6 shadow-[0_30px_100px_rgba(0,0,0,0.42)] sm:px-6 sm:py-8 lg:px-8 lg:py-10">
           <div className="text-center">
             <p className="text-[10px] uppercase tracking-[0.42em] text-amber-200/70">Servicos</p>
-            <h2 className="mt-3 font-[var(--font-display)] text-4xl text-amber-50 sm:text-5xl">Escolha seu proximo cuidado</h2>
+            <h2 className="mt-3 font-[var(--font-display)] text-3xl text-amber-50 sm:text-4xl lg:text-5xl">Escolha seu proximo cuidado</h2>
             <p className="mx-auto mt-4 max-w-3xl text-sm leading-7 text-stone-300 sm:text-base">
               A vitrine da Dommus ja aparece aqui para induzir o cliente a seguir direto para a agenda sem perder tempo.
             </p>
           </div>
 
-          <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <div className="mt-8 flex snap-x snap-mandatory gap-4 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:grid md:grid-cols-2 md:overflow-visible md:pb-0 xl:grid-cols-4">
             {featuredServices.map((service) => (
               <article
                 key={service.id}
-                className="overflow-hidden rounded-[28px] border border-amber-200/10 bg-[linear-gradient(180deg,rgba(255,222,173,0.04),rgba(12,9,7,0.86))] shadow-[0_20px_55px_rgba(0,0,0,0.32)]"
+                className="min-w-[276px] snap-start overflow-hidden rounded-[28px] border border-amber-200/10 bg-[linear-gradient(180deg,rgba(255,222,173,0.04),rgba(12,9,7,0.86))] shadow-[0_20px_55px_rgba(0,0,0,0.32)] md:min-w-0"
               >
-                <div className="relative h-52">
+                <div className="relative h-44 sm:h-48 md:h-52">
                   <Image src={service.image_path} alt={service.name} fill className="object-cover object-center" />
                   <div className="absolute inset-0 bg-[linear-gradient(180deg,transparent_18%,rgba(12,9,7,0.9))]" />
                 </div>
-                <div className="px-5 pb-5 pt-4">
+                <div className="px-4 pb-4 pt-4 sm:px-5 sm:pb-5">
                   <div className="flex items-start justify-between gap-4">
-                    <h3 className="font-[var(--font-display)] text-2xl text-amber-50">{service.name}</h3>
-                    <span className="rounded-full border border-amber-300/25 bg-amber-300/10 px-3 py-1 text-sm font-semibold text-amber-100">
+                    <h3 className="font-[var(--font-display)] text-xl text-amber-50 sm:text-2xl">{service.name}</h3>
+                    <span className="rounded-full border border-amber-300/25 bg-amber-300/10 px-3 py-1 text-xs font-semibold text-amber-100 sm:text-sm">
                       {(service.price_in_cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
                     </span>
                   </div>
