@@ -28,7 +28,7 @@ export default async function FecharDiaPage({ searchParams }: { searchParams: Se
     getQuickWeekDates(new Date())
       .filter((item) => item.rolledToNextWeek)
       .forEach((item) => {
-        ensureBlockedDay(primaryBarber.id, item.iso, "Fechado por padrao ate o barbeiro liberar");
+        ensureBlockedDay(primaryBarber.id, item.iso, "Fechado por padrão até o barbeiro liberar");
         ensureDefaultBlockedPeriodsForDate(primaryBarber.id, item.iso);
       });
   }

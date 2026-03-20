@@ -1,4 +1,4 @@
-﻿import { addMinutes } from "date-fns";
+import { addMinutes } from "date-fns";
 import { redirect } from "next/navigation";
 import { generateProtocolCode, getBookingDurationMinutes } from "@/lib/booking";
 import { requireRoles } from "@/lib/auth";
@@ -55,7 +55,7 @@ export async function POST(request: Request) {
 
   if (!barber || !service || !customerName || !customerPhone || !date || !time) {
     if ((request.headers.get("content-type") || "").includes("application/json")) {
-      return Response.json({ error: "Preencha nome, telefone, servico, data e horario." }, { status: 400 });
+      return Response.json({ error: "Preencha nome, telefone, serviço, data e horário." }, { status: 400 });
     }
     redirect("/admin/agendamento-manual?error=missing-fields");
   }
@@ -79,7 +79,7 @@ export async function POST(request: Request) {
 
   if (overlapping || blocked) {
     if ((request.headers.get("content-type") || "").includes("application/json")) {
-      return Response.json({ error: "Esse horario nao esta mais disponivel." }, { status: 409 });
+      return Response.json({ error: "Esse horário não está mais disponível." }, { status: 409 });
     }
     redirect(`/admin/agendamento-manual?date=${date}&serviceId=${serviceId}&error=slot-unavailable`);
   }

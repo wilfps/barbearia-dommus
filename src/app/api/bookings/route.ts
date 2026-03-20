@@ -1,4 +1,4 @@
-﻿import { addMinutes } from "date-fns";
+import { addMinutes } from "date-fns";
 import { redirect } from "next/navigation";
 import { generateProtocolCode, getBookingDurationMinutes } from "@/lib/booking";
 import { requireUser } from "@/lib/auth";
@@ -83,7 +83,7 @@ export async function POST(request: Request) {
       createLead({
         userId: user.id,
         serviceId: primaryService.id,
-        lastStep: "Tentou fechar um horario indisponivel e nao concluiu",
+        lastStep: "Tentou fechar um horário indisponível e não concluiu",
       });
       redirect(buildClientRedirect(date, services, { bookingError: "slot-unavailable" }));
     }

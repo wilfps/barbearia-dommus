@@ -275,7 +275,7 @@ export function OwnerDashboardClient({
           <p className="text-xs uppercase tracking-[0.45em] text-amber-200/60">Poder total</p>
           <h2 className="mt-3 text-2xl text-amber-50 sm:text-3xl">Bloquear acesso com mensagem</h2>
           <p className="mt-3 max-w-xl text-sm leading-6 text-stone-300">
-            O site continua no ar, mas cliente e barbeiro ficam travados e enxergam a mensagem que voce escrever aqui.
+            O site continua no ar, mas cliente e barbeiro ficam travados e enxergam a mensagem que você escrever aqui.
           </p>
           <div className="mt-6 space-y-4">
             <select
@@ -356,9 +356,9 @@ export function OwnerDashboardClient({
 
       <section className="glass rounded-[24px] p-4 sm:rounded-[32px] sm:p-6">
         <p className="text-xs uppercase tracking-[0.45em] text-amber-200/60">Precos</p>
-        <h2 className="mt-3 text-2xl text-amber-50 sm:text-3xl">Alterar valores dos servicos</h2>
+        <h2 className="mt-3 text-2xl text-amber-50 sm:text-3xl">Alterar valores dos serviços</h2>
         <p className="mt-3 max-w-3xl text-sm text-stone-300">
-          O sinal da reserva sempre sera calculado automaticamente como 50% do valor que voce definir aqui.
+          O sinal da reserva sempre será calculado automaticamente como 50% do valor que você definir aqui.
         </p>
         <div className="mt-6 space-y-3">
           {serviceList.map((service) => (
@@ -428,7 +428,7 @@ export function OwnerDashboardClient({
           <StatCard
             label="Ativacao"
             value={checkoutConfig.readyForActivation ? "Pronto" : "Em preparacao"}
-            helper="Com a handle salva, o checkout ja pode gerar o link real."
+            helper="Com a handle salva, o checkout já pode gerar o link real."
           />
         </div>
 
@@ -481,7 +481,7 @@ export function OwnerDashboardClient({
         <p className="text-xs uppercase tracking-[0.45em] text-amber-200/60">Banco de clientes</p>
         <h2 className="mt-3 text-2xl text-amber-50 sm:text-3xl">Pesquisar clientes cadastrados</h2>
         <p className="mt-3 max-w-3xl text-sm text-stone-300">
-          Aqui voce consulta a base de clientes da Dommus por nome ou telefone e, se quiser, tambem ajusta a permissao na hora.
+          Aqui você consulta a base de clientes da Dommus por nome ou telefone e, se quiser, também ajusta a permissão na hora.
         </p>
 
         <div className="mt-6">

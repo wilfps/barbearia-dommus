@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -202,7 +202,7 @@ export function AdminManualBooking({
     setSuccessMessage(null);
 
     if (!formState.customerName || !formState.customerPhone || !formState.serviceId || !formState.date || !formState.time) {
-      setErrorMessage("Preencha nome, telefone, servico, data e horario.");
+      setErrorMessage("Preencha nome, telefone, serviço, data e horário.");
       return;
     }
 
@@ -270,7 +270,7 @@ export function AdminManualBooking({
         const payload = (await response.json().catch(() => null)) as
           | { error?: string }
           | null;
-        throw new Error(payload?.error || "Nao foi possivel liberar esse horario.");
+        throw new Error(payload?.error || "Não foi possível liberar esse horário.");
       }
 
       setConfirmingSlot(null);
@@ -278,7 +278,7 @@ export function AdminManualBooking({
     } catch (error) {
       console.error(error);
       setErrorMessage(
-        error instanceof Error ? error.message : "Nao foi possivel liberar esse horario.",
+        error instanceof Error ? error.message : "Não foi possível liberar esse horário.",
       );
     }
   };
@@ -412,7 +412,7 @@ export function AdminManualBooking({
       >
         <p className="text-xs uppercase tracking-[0.35em] text-[#d6bf74]">Agenda do barbeiro</p>
         <h2 className="mt-3 font-[var(--font-display)] text-4xl text-[#f9f1df] sm:text-5xl">
-          Escolha o horario com facilidade
+          Escolha o horário com facilidade
         </h2>
         <p className="mt-4 text-sm text-[#f1e7d6]/75 sm:text-base">
           Barbeiro: Gabriel Rodrigues. Servico: {selectedService?.name ?? "Escolha um servico"}
@@ -450,7 +450,7 @@ export function AdminManualBooking({
                       className="rounded-[1.1rem] border border-rose-400/35 bg-rose-500/12 px-3 py-3 text-center"
                     >
                       <p className="text-xs font-semibold uppercase tracking-[0.22em] text-rose-200">
-                        Liberar horario?
+                        Liberar horário?
                       </p>
                       <div className="mt-3 flex gap-2">
                         <button

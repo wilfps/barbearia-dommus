@@ -63,7 +63,7 @@ export default async function Home({ searchParams }: { searchParams: SearchParam
                   Home
                 </a>
                 <a href="#servicos" className="rounded-full px-3 py-2 transition hover:bg-white/[0.04] hover:text-amber-50">
-                  Servicos
+                  Serviços
                 </a>
                 <a href="#acesso" className="rounded-full px-3 py-2 transition hover:bg-white/[0.04] hover:text-amber-50">
                   Cadastro
@@ -82,7 +82,7 @@ export default async function Home({ searchParams }: { searchParams: SearchParam
 
               <div className="hidden items-center gap-2 rounded-full border border-amber-200/15 bg-white/[0.03] px-4 py-2 text-[10px] tracking-[0.38em] text-amber-200/75 lg:flex">
                 <Sparkles className="size-4" />
-                Padrao Dommus
+                Padrão Dommus
               </div>
             </div>
           </div>
@@ -108,7 +108,7 @@ export default async function Home({ searchParams }: { searchParams: SearchParam
                 href="#acesso"
                 className="inline-flex items-center gap-3 rounded-full border border-amber-300/45 bg-[linear-gradient(180deg,#7d5a2d,#372314)] px-5 py-3 text-sm font-semibold text-amber-50 shadow-[inset_0_1px_0_rgba(255,239,204,0.18),0_16px_35px_rgba(0,0,0,0.3)] transition hover:brightness-110"
               >
-                Agendar horario
+                Agendar horário
                 <ArrowRight className="size-4" />
               </a>
             </div>
@@ -122,19 +122,19 @@ export default async function Home({ searchParams }: { searchParams: SearchParam
               <div className="relative">
                 <div className="inline-flex items-center gap-3 rounded-full border border-amber-200/15 bg-white/[0.03] px-4 py-2 text-[10px] uppercase tracking-[0.36em] text-amber-100/80">
                   <Sparkles className="size-4" />
-                  Tradicao e elegancia
+                  Tradição e elegância
                 </div>
 
                 <h1 className="mt-7 max-w-3xl font-[var(--font-display)] text-5xl leading-[0.94] text-amber-50 sm:text-6xl lg:text-7xl">
-                  Sua melhor versao pede a experiencia Dommus!
+                  Sua melhor versão pede a experiência Dommus!
                 </h1>
 
                 <p className="mt-6 max-w-2xl text-base leading-8 text-amber-100/85 sm:text-lg">
-                  Porque quando se trata da sua imagem, o padrao e sempre o mais alto.
+                  Porque quando se trata da sua imagem, o padrão é sempre o mais alto.
                 </p>
 
                 <p className="mt-4 max-w-2xl text-sm leading-7 text-stone-300 sm:text-base">
-                  Um inicio mais nobre, uma reserva mais rapida e uma apresentacao que ja passa o cuidado premium da barbearia antes mesmo do primeiro atendimento.
+                  Um início mais nobre, uma reserva mais rápida e uma apresentação que já passa o cuidado premium da barbearia antes mesmo do primeiro atendimento.
                 </p>
 
                 <div className="mt-8 flex flex-col gap-4 sm:flex-row">
@@ -142,13 +142,13 @@ export default async function Home({ searchParams }: { searchParams: SearchParam
                     href="#acesso"
                     className="inline-flex items-center justify-center rounded-full border border-amber-300/45 bg-[linear-gradient(180deg,#7b592d,#3c2916)] px-6 py-3 text-sm font-semibold text-amber-50 shadow-[inset_0_1px_0_rgba(255,239,204,0.18),0_18px_40px_rgba(0,0,0,0.28)] transition hover:brightness-110"
                   >
-                    Faca seu cadastro e agende seu horario
+                    Faça seu cadastro e agende seu horário
                   </a>
                   <a
                     href="#servicos"
                     className="inline-flex items-center justify-center rounded-full border border-white/12 bg-white/[0.03] px-6 py-3 text-sm font-semibold text-stone-100 transition hover:border-amber-200/30 hover:bg-white/[0.05]"
                   >
-                    Ver servicos
+                    Ver serviços
                   </a>
                 </div>
               </div>
@@ -157,7 +157,7 @@ export default async function Home({ searchParams }: { searchParams: SearchParam
             <div className="relative min-h-[420px] overflow-hidden border-t border-amber-200/10 lg:min-h-[690px] lg:border-l lg:border-t-0">
               <Image
                 src="/services/cabelo-barboterapia.jpg"
-                alt="Experiencia premium Dommus"
+                alt="Experiência premium Dommus"
                 fill
                 className="object-cover object-center"
                 priority
@@ -167,10 +167,10 @@ export default async function Home({ searchParams }: { searchParams: SearchParam
               <div className="absolute bottom-6 left-6 right-6 rounded-[26px] border border-amber-200/10 bg-black/40 p-4 backdrop-blur-md sm:bottom-8 sm:left-8 sm:right-8 sm:p-5">
                 <p className="text-[10px] uppercase tracking-[0.38em] text-amber-200/70">Assinatura Dommus</p>
                 <p className="mt-3 font-[var(--font-display)] text-2xl text-amber-50 sm:text-3xl">
-                  Padrao classico em cuidados masculinos.
+                  Padrão clássico em cuidados masculinos.
                 </p>
                 <p className="mt-2 text-sm leading-7 text-stone-200/80">
-                  Ambiente marcante, presenca forte e acabamento preciso para transformar a reserva online em uma experiencia de verdade.
+                  Ambiente marcante, presença forte e acabamento preciso para transformar a reserva online em uma experiência de verdade.
                 </p>
               </div>
             </div>
@@ -179,10 +179,10 @@ export default async function Home({ searchParams }: { searchParams: SearchParam
 
         <section id="servicos" className="mt-6 rounded-[34px] border border-amber-200/10 bg-[#120d0b]/92 px-4 py-5 shadow-[0_30px_100px_rgba(0,0,0,0.42)] sm:px-5 sm:py-6 lg:px-6 lg:py-7">
           <div className="text-center">
-            <p className="text-[10px] uppercase tracking-[0.42em] text-amber-200/70">Servicos</p>
-            <h2 className="mt-3 font-[var(--font-display)] text-2xl text-amber-50 sm:text-3xl lg:text-4xl">Escolha seu proximo cuidado</h2>
+            <p className="text-[10px] uppercase tracking-[0.42em] text-amber-200/70">Serviços</p>
+            <h2 className="mt-3 font-[var(--font-display)] text-2xl text-amber-50 sm:text-3xl lg:text-4xl">Escolha seu próximo cuidado</h2>
             <p className="mx-auto mt-3 max-w-3xl text-sm leading-7 text-stone-300 sm:text-base">
-              A vitrine da Dommus ja aparece aqui para induzir o cliente a seguir direto para a agenda sem perder tempo.
+              A vitrine da Dommus já aparece aqui para induzir o cliente a seguir direto para a agenda sem perder tempo.
             </p>
           </div>
 
@@ -212,12 +212,12 @@ export default async function Home({ searchParams }: { searchParams: SearchParam
                 <p className="text-[10px] uppercase tracking-[0.42em] text-amber-200/70">Acesso</p>
                 <h2 className="mt-4 font-[var(--font-display)] text-3xl text-amber-50 sm:text-4xl">Entre ou crie sua conta</h2>
                 <p className="mt-3 text-sm leading-7 text-stone-300">
-                  Em vez de separar demais a experiencia, o acesso fica junto da vitrine para acelerar a decisao e empurrar o cliente para a reserva com mais facilidade.
+                  Em vez de separar demais a experiência, o acesso fica junto da vitrine para acelerar a decisão e empurrar o cliente para a reserva com mais facilidade.
                 </p>
               </div>
               <div className="rounded-[24px] border border-amber-200/12 bg-black/20 px-5 py-4 text-sm leading-7 text-stone-300 lg:max-w-xs">
-                <p className="text-[10px] uppercase tracking-[0.35em] text-amber-200/65">Fluxo rapido</p>
-                <p className="mt-2">Servico, cadastro, login e agenda organizados em uma so entrada.</p>
+                <p className="text-[10px] uppercase tracking-[0.35em] text-amber-200/65">Fluxo rápido</p>
+                <p className="mt-2">Serviço, cadastro, login e agenda organizados em uma só entrada.</p>
               </div>
             </div>
 

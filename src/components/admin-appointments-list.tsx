@@ -49,7 +49,7 @@ export function AdminAppointmentsList({ initialAppointments }: { initialAppointm
       setConfirmingId(null);
     } catch (error) {
       console.error(error);
-      window.alert("Nao conseguimos excluir o agendamento agora. Tente novamente.");
+      window.alert("Não conseguimos excluir o agendamento agora. Tente novamente.");
     } finally {
       setDeletingId(null);
     }

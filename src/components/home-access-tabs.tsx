@@ -44,7 +44,7 @@ export function HomeAccessTabs({ email, loginError, reset, blocked }: HomeAccess
       {tab === "login" ? (
         <div className="mt-5 rounded-[24px] border border-white/10 bg-black/20 p-5">
           <p className="text-[10px] uppercase tracking-[0.42em] text-amber-200/70">Entrar</p>
-          <h3 className="mt-3 font-[var(--font-display)] text-3xl text-amber-50">Ja sou cliente</h3>
+          <h3 className="mt-3 font-[var(--font-display)] text-3xl text-amber-50">Já sou cliente</h3>
           <form action="/api/auth/login" method="post" className="mt-5 space-y-4">
             <input
               name="email"
@@ -73,13 +73,13 @@ export function HomeAccessTabs({ email, loginError, reset, blocked }: HomeAccess
               Esqueci minha senha
             </Link>
           </div>
-          {reset ? <p className="mt-4 text-sm text-emerald-300">Senha redefinida com sucesso. Agora voce ja pode entrar.</p> : null}
+          {reset ? <p className="mt-4 text-sm text-emerald-300">Senha redefinida com sucesso. Agora você já pode entrar.</p> : null}
           {loginError ? (
             <p className="mt-4 rounded-2xl border border-rose-400/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
               E-mail ou senha incorretos. Confira seus dados e tente novamente.
             </p>
           ) : null}
-          {blocked ? <p className="mt-4 text-sm text-amber-100">As funcionalidades estao temporariamente travadas.</p> : null}
+          {blocked ? <p className="mt-4 text-sm text-amber-100">As funcionalidades estão temporariamente travadas.</p> : null}
         </div>
       ) : (
         <div className="mt-5 rounded-[24px] border border-white/10 bg-black/20 p-5">

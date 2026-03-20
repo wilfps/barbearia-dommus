@@ -34,7 +34,7 @@ function PaymentNotice({ payment }: { payment?: string }) {
         <p className="text-xs uppercase tracking-[0.35em] text-emerald-200/80">Pagamento confirmado</p>
         <h2 className="mt-2 text-xl">Seu pagamento foi reconhecido com sucesso</h2>
         <p className="mt-2 text-sm text-emerald-100/90">
-          A reserva foi confirmada e o protocolo jÃ¡ estÃ¡ pronto para identificaÃ§Ã£o junto ao barbeiro.
+          A reserva foi confirmada e o protocolo já está pronto para identificação junto ao barbeiro.
         </p>
       </section>
     );
@@ -43,10 +43,10 @@ function PaymentNotice({ payment }: { payment?: string }) {
   if (payment === "pending") {
     return (
       <section className="rounded-[24px] border border-amber-300/35 bg-amber-300/10 p-4 text-amber-50 sm:rounded-[28px] sm:p-5">
-        <p className="text-xs uppercase tracking-[0.35em] text-amber-200/80">Pagamento em anÃ¡lise</p>
-        <h2 className="mt-2 text-xl">A InfinitePay ainda nÃ£o confirmou esse pagamento</h2>
+        <p className="text-xs uppercase tracking-[0.35em] text-amber-200/80">Pagamento em análise</p>
+        <h2 className="mt-2 text-xl">A InfinitePay ainda não confirmou esse pagamento</h2>
         <p className="mt-2 text-sm text-stone-200">
-          Se vocÃª jÃ¡ pagou, aguarde alguns instantes e atualize a pÃ¡gina. Se preferir, finalize o pagamento novamente pelo
+          Se você já pagou, aguarde alguns instantes e atualize a página. Se preferir, finalize o pagamento novamente pelo
           check-out.
         </p>
       </section>
@@ -56,10 +56,10 @@ function PaymentNotice({ payment }: { payment?: string }) {
   if (payment === "checkout-error" || payment === "checkout-unavailable") {
     return (
       <section className="rounded-[24px] border border-red-500/35 bg-red-500/10 p-4 text-red-50 sm:rounded-[28px] sm:p-5">
-        <p className="text-xs uppercase tracking-[0.35em] text-red-200/80">Checkout indisponÃ­vel</p>
-        <h2 className="mt-2 text-xl">NÃ£o conseguimos abrir o pagamento agora</h2>
+        <p className="text-xs uppercase tracking-[0.35em] text-red-200/80">Checkout indisponível</p>
+        <h2 className="mt-2 text-xl">Não conseguimos abrir o pagamento agora</h2>
         <p className="mt-2 text-sm text-stone-200">
-          Tente novamente em alguns instantes. Se continuar falhando, ajuste a configuraÃ§Ã£o do checkout no painel admin.
+          Tente novamente em alguns instantes. Se continuar falhando, ajuste a configuração do checkout no painel admin.
         </p>
       </section>
     );
@@ -115,7 +115,7 @@ export default async function ClienteMinhaAreaPage({ searchParams }: { searchPar
 
   return (
     <AppShell
-      title={`Minha Ã¡rea, ${user.name.split(" ")[0]}`}
+      title={`Minha área, ${user.name.split(" ")[0]}`}
       subtitle="Atualize seu perfil, acompanhe reservas ativas, veja seus protocolos e finalize pagamentos pendentes."
       myAreaHref="/cliente/minha-area"
       hideAdminLinks
@@ -124,7 +124,7 @@ export default async function ClienteMinhaAreaPage({ searchParams }: { searchPar
           href="/cliente"
           className="rounded-full border border-amber-300/35 bg-amber-300/10 px-4 py-3 text-center font-medium text-amber-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_8px_20px_rgba(210,178,124,0.08)] transition hover:border-amber-300/60 hover:bg-amber-300/16 sm:px-4 sm:py-2"
         >
-          Voltar para os serviÃ§os
+          Voltar para os serviços
         </Link>
       }
     >
@@ -134,7 +134,7 @@ export default async function ClienteMinhaAreaPage({ searchParams }: { searchPar
             <p className="text-xs uppercase tracking-[0.35em] text-amber-200/70">Cadastro incompleto</p>
             <h2 className="mt-2 text-xl">Falta sua data de nascimento</h2>
             <p className="mt-2 text-sm text-stone-200">
-              Para a Dommus te identificar melhor e liberar mensagens de aniversÃ¡rio, preencha sua data de nascimento aqui no perfil.
+              Para a Dommus te identificar melhor e liberar mensagens de aniversário, preencha sua data de nascimento aqui no perfil.
             </p>
           </section>
         ) : null}
@@ -192,8 +192,8 @@ export default async function ClienteMinhaAreaPage({ searchParams }: { searchPar
             <p className="text-xs uppercase tracking-[0.45em] text-amber-200/60">Check-out</p>
             <h2 className="mt-3 text-2xl text-amber-50 sm:text-3xl">Finalize seu pagamento</h2>
             <p className="mt-2 text-sm text-stone-300">
-              Checkout online: {checkoutConfig.handleConfigured ? "ativo para gerar link real" : "aguardando configuraÃ§Ã£o do admin"}.
-              {" "}PIX: {pixConfig.tokenConfigured && pixConfig.pixKeyConfigured ? "estrutura pronta para integraÃ§Ã£o real" : "modo preparaÃ§Ã£o"}.
+              Checkout online: {checkoutConfig.handleConfigured ? "ativo para gerar link real" : "aguardando configuração do admin"}.
+              {" "}PIX: {pixConfig.tokenConfigured && pixConfig.pixKeyConfigured ? "estrutura pronta para integração real" : "modo preparação"}.
             </p>
             <div className="mt-6 space-y-4">
               {pendingAppointments.map((appointment) => {
@@ -326,7 +326,7 @@ export default async function ClienteMinhaAreaPage({ searchParams }: { searchPar
                   </div>
                 </div>
                 <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-                  <p className="text-sm text-emerald-300">Reserva ativa com protocolo pronto para identificaÃ§Ã£o junto ao barbeiro.</p>
+                  <p className="text-sm text-emerald-300">Reserva ativa com protocolo pronto para identificação junto ao barbeiro.</p>
                   <form action="/api/customer/appointments/cancel" method="post">
                     <input type="hidden" name="appointmentId" value={appointment.id} />
                     <input type="hidden" name="returnTo" value="/cliente/minha-area#checkout" />
@@ -346,7 +346,7 @@ export default async function ClienteMinhaAreaPage({ searchParams }: { searchPar
         </section>
 
         <div className="grid gap-4 md:grid-cols-3">
-          <StatCard label="Ativas" value={`${appointments.length}`} helper="Reservas visÃ­veis para o cliente." />
+          <StatCard label="Ativas" value={`${appointments.length}`} helper="Reservas visíveis para o cliente." />
           <StatCard label="Pendentes" value={`${pendingAppointments.length}`} helper="Pagamentos do sinal ainda em aberto." />
         </div>
       </div>
