@@ -8,10 +8,6 @@
   --gold: #c6a46c;
   --gold-strong: #f5d49b;
   --line: rgba(255, 255, 255, 0.1);
-  --concrete-base: #121212;
-  --concrete-mid: #1a1a1a;
-  --concrete-deep: #101010;
-  --concrete-detail: #2a2a2a;
 }
 
 @theme inline {
@@ -34,50 +30,21 @@ body {
   min-height: 100vh;
   background-color: var(--background);
   background-image:
-    radial-gradient(circle at 18% 22%, rgba(255, 255, 255, 0.03), transparent 20%),
-    radial-gradient(circle at 82% 18%, rgba(255, 255, 255, 0.022), transparent 18%),
-    radial-gradient(circle at 28% 78%, rgba(255, 255, 255, 0.024), transparent 17%),
-    radial-gradient(circle at 76% 72%, rgba(255, 255, 255, 0.02), transparent 18%),
-    radial-gradient(circle at 50% 50%, rgba(42, 42, 42, 0.38), transparent 58%),
-    linear-gradient(145deg, rgba(255, 255, 255, 0.018), transparent 34%, rgba(0, 0, 0, 0.16) 72%, transparent 100%),
-    linear-gradient(180deg, var(--concrete-mid) 0%, var(--concrete-base) 46%, var(--concrete-deep) 100%);
+    linear-gradient(rgba(0, 0, 0, 0.25), rgba(0, 0, 0, 0.25)),
+    url("/textures/dark-burnt-concrete.png");
+  background-size: auto, cover;
+  background-repeat: repeat, repeat;
   background-attachment: fixed;
   color: var(--foreground);
   font-family: var(--font-body), sans-serif;
 }
 
 body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: -2;
-  opacity: 0.42;
-  background-image:
-    repeating-linear-gradient(
-      112deg,
-      transparent 0 42px,
-      rgba(255, 255, 255, 0.012) 42px 44px,
-      transparent 44px 88px
-    ),
-    repeating-linear-gradient(
-      18deg,
-      transparent 0 58px,
-      rgba(0, 0, 0, 0.08) 58px 60px,
-      transparent 60px 120px
-    );
-  mix-blend-mode: soft-light;
+  content: none;
 }
 
 body::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: -1;
-  background:
-    linear-gradient(rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.2)),
-    radial-gradient(circle at top, rgba(198, 164, 108, 0.035), transparent 30%);
+  content: none;
 }
 
 h1,
