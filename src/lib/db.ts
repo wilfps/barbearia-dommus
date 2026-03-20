@@ -111,6 +111,21 @@ export type LeadRecord = {
   service_name?: string | null;
 };
 
+const defaultAutoBlockedPeriods = [
+  {
+    key: "midday-break",
+    startTime: "12:00:00",
+    endTime: "14:00:00",
+    reason: "Fechado por padrão até o barbeiro liberar",
+  },
+  {
+    key: "night-close",
+    startTime: "21:00:00",
+    endTime: "21:59:59",
+    reason: "Fechado por padrão até o barbeiro liberar",
+  },
+] as const;
+
 function createId(prefix: string) {
   return `${prefix}_${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`;
 }
@@ -220,6 +235,15 @@ function initDb() {
       date_iso TEXT NOT NULL,
       created_at TEXT NOT NULL,
       PRIMARY KEY (barber_id, date_iso),
+      FOREIGN KEY(barber_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS released_default_blocked_periods (
+      barber_id TEXT NOT NULL,
+      date_iso TEXT NOT NULL,
+      period_key TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      PRIMARY KEY (barber_id, date_iso, period_key),
       FOREIGN KEY(barber_id) REFERENCES users(id) ON DELETE CASCADE
     );
 
@@ -861,6 +885,27 @@ function isDefaultAutoBlockedDay(slot: Pick<BlockedSlotRecord, "starts_at" | "en
   );
 }
 
+function getDefaultBlockedPeriodKey(slot: Pick<BlockedSlotRecord, "starts_at" | "ends_at" | "reason">) {
+  if (!slot.reason?.includes("Fechado por padrão até o barbeiro liberar")) {
+    return null;
+  }
+
+  const startsAt = new Date(slot.starts_at);
+  const endsAt = new Date(slot.ends_at);
+  const startTime = `${String(startsAt.getUTCHours()).padStart(2, "0")}:${String(startsAt.getUTCMinutes()).padStart(2, "0")}:${String(startsAt.getUTCSeconds()).padStart(2, "0")}`;
+  const endTime = `${String(endsAt.getUTCHours()).padStart(2, "0")}:${String(endsAt.getUTCMinutes()).padStart(2, "0")}:${String(endsAt.getUTCSeconds()).padStart(2, "0")}`;
+
+  const match = defaultAutoBlockedPeriods.find((period) => {
+    const expectedStart = new Date(toBrazilDateTimeIso(formatBrazilDateInput(slot.starts_at), period.startTime));
+    const expectedEnd = new Date(toBrazilDateTimeIso(formatBrazilDateInput(slot.starts_at), period.endTime));
+    const expectedStartTime = `${String(expectedStart.getUTCHours()).padStart(2, "0")}:${String(expectedStart.getUTCMinutes()).padStart(2, "0")}:${String(expectedStart.getUTCSeconds()).padStart(2, "0")}`;
+    const expectedEndTime = `${String(expectedEnd.getUTCHours()).padStart(2, "0")}:${String(expectedEnd.getUTCMinutes()).padStart(2, "0")}:${String(expectedEnd.getUTCSeconds()).padStart(2, "0")}`;
+    return expectedStartTime === startTime && expectedEndTime === endTime;
+  });
+
+  return match?.key ?? null;
+}
+
 function markDefaultBlockedDayReleased(barberId: string, dateIso: string) {
   db.prepare(`
     INSERT OR REPLACE INTO released_default_blocked_days (barber_id, date_iso, created_at)
@@ -868,11 +913,25 @@ function markDefaultBlockedDayReleased(barberId: string, dateIso: string) {
   `).run(barberId, dateIso, nowIso());
 }
 
+function markDefaultBlockedPeriodReleased(barberId: string, dateIso: string, periodKey: string) {
+  db.prepare(`
+    INSERT OR REPLACE INTO released_default_blocked_periods (barber_id, date_iso, period_key, created_at)
+    VALUES (?, ?, ?, ?)
+  `).run(barberId, dateIso, periodKey, nowIso());
+}
+
 export function clearDefaultBlockedDayReleased(barberId: string, dateIso: string) {
   db.prepare(`
     DELETE FROM released_default_blocked_days
     WHERE barber_id = ? AND date_iso = ?
   `).run(barberId, dateIso);
+}
+
+export function clearDefaultBlockedPeriodReleased(barberId: string, dateIso: string, periodKey: string) {
+  db.prepare(`
+    DELETE FROM released_default_blocked_periods
+    WHERE barber_id = ? AND date_iso = ? AND period_key = ?
+  `).run(barberId, dateIso, periodKey);
 }
 
 export function deleteBlockedSlotById(id: string) {
@@ -890,6 +949,13 @@ export function deleteBlockedSlotById(id: string) {
 
   if (slot && isDefaultAutoBlockedDay(slot)) {
     markDefaultBlockedDayReleased(slot.barber_id, formatBrazilDateInput(slot.starts_at));
+  }
+
+  if (slot) {
+    const defaultPeriodKey = getDefaultBlockedPeriodKey(slot);
+    if (defaultPeriodKey) {
+      markDefaultBlockedPeriodReleased(slot.barber_id, formatBrazilDateInput(slot.starts_at), defaultPeriodKey);
+    }
   }
 }
 
@@ -929,6 +995,44 @@ export function ensureBlockedDay(barberId: string, dateIso: string, reason: stri
   });
 
   return null;
+}
+
+export function ensureDefaultBlockedPeriodsForDate(barberId: string, dateIso: string) {
+  defaultAutoBlockedPeriods.forEach((period) => {
+    const wasReleased = db.prepare(`
+      SELECT 1
+      FROM released_default_blocked_periods
+      WHERE barber_id = ? AND date_iso = ? AND period_key = ?
+      LIMIT 1
+    `).get(barberId, dateIso, period.key);
+
+    if (wasReleased) {
+      return;
+    }
+
+    const startsAt = toBrazilDateTimeIso(dateIso, period.startTime);
+    const endsAt = toBrazilDateTimeIso(dateIso, period.endTime);
+
+    const existing = db.prepare(`
+      SELECT id
+      FROM blocked_slots
+      WHERE barber_id = ?
+        AND starts_at = ?
+        AND ends_at = ?
+      LIMIT 1
+    `).get(barberId, startsAt, endsAt) as { id: string } | undefined;
+
+    if (existing) {
+      return;
+    }
+
+    createBlockedSlot({
+      barberId,
+      startsAt,
+      endsAt,
+      reason: period.reason,
+    });
+  });
 }
 
 export function listCustomers(search?: string) {

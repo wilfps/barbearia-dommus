@@ -7,6 +7,7 @@ import { getBookingDurationMinutes, listScheduleSlots } from "@/lib/booking";
 import { requireRoles } from "@/lib/auth";
 import { formatBrazilTime, getBrazilDayRange, toBrazilDateObject } from "@/lib/brazil-time";
 import {
+  ensureDefaultBlockedPeriodsForDate,
   getPrimaryBarber,
   getServiceById,
   listAppointmentsByBarberOnDate,
@@ -36,6 +37,9 @@ export default async function AdminManualBookingPage({ searchParams }: { searchP
   const barber = getPrimaryBarber();
   const services = listServices();
   const selectedDate = normalizeSelectedDate(params.date);
+  if (barber?.id) {
+    ensureDefaultBlockedPeriodsForDate(barber.id, selectedDate);
+  }
   const selectedServiceId = params.serviceId ?? services[0]?.id ?? "";
   const selectedService = getServiceById(selectedServiceId);
   const quickDates = getQuickWeekDates(new Date()).map((date) => ({

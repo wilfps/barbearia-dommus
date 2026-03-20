@@ -1,6 +1,7 @@
 import { getBookingDurationMinutes, listScheduleSlots } from "@/lib/booking";
 import { requireRoles } from "@/lib/auth";
 import {
+  ensureDefaultBlockedPeriodsForDate,
   getPrimaryBarber,
   getServiceById,
   listAppointmentsByBarberOnDate,
@@ -21,6 +22,7 @@ export async function GET(request: Request) {
     return Response.json({ slots: [], isBlockedDay: false });
   }
 
+  ensureDefaultBlockedPeriodsForDate(barber.id, date);
   const dayRange = getBrazilDayRange(date);
   const appointments = listAppointmentsByBarberOnDate(barber.id, dayRange.startIso, dayRange.endIso);
   const blockedSlots = listBlockedSlotsByBarberOnDate(barber.id, dayRange.startIso, dayRange.endIso);

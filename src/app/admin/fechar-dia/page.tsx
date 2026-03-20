@@ -3,7 +3,7 @@ import { format } from "date-fns";
 import { AdminBlockForms } from "@/components/admin-block-forms";
 import { AppShell } from "@/components/shell";
 import { requireRoles } from "@/lib/auth";
-import { ensureBlockedDay, getPrimaryBarber, listBlockedSlots } from "@/lib/db";
+import { ensureBlockedDay, ensureDefaultBlockedPeriodsForDate, getPrimaryBarber, listBlockedSlots } from "@/lib/db";
 import { getQuickWeekDates } from "@/lib/quick-dates";
 
 type SearchParams = Promise<{
@@ -19,14 +19,19 @@ export default async function FecharDiaPage({ searchParams }: { searchParams: Se
   await requireRoles(["ADMIN", "BARBER", "OWNER"]);
   const params = await searchParams;
   const primaryBarber = getPrimaryBarber();
+  const today = resolveDate(params.date);
   if (primaryBarber) {
+    const [day, month, year] = today.split("/");
+    if (day && month && year) {
+      ensureDefaultBlockedPeriodsForDate(primaryBarber.id, `${year}-${month}-${day}`);
+    }
     getQuickWeekDates(new Date())
       .filter((item) => item.rolledToNextWeek)
       .forEach((item) => {
         ensureBlockedDay(primaryBarber.id, item.iso, "Fechado por padrao ate o barbeiro liberar");
+        ensureDefaultBlockedPeriodsForDate(primaryBarber.id, item.iso);
       });
   }
-  const today = resolveDate(params.date);
   const upcomingBlockedSlots = primaryBarber
     ? listBlockedSlots([primaryBarber.id]).filter((slot) => new Date(slot.ends_at).getTime() >= new Date().setHours(0, 0, 0, 0))
     : [];

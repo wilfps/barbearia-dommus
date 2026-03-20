@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { requireRoles } from "@/lib/auth";
-import { createBlockedSlot, getPrimaryBarber } from "@/lib/db";
+import { clearDefaultBlockedPeriodReleased, createBlockedSlot, getPrimaryBarber } from "@/lib/db";
 import { toBrazilDateObject } from "@/lib/brazil-time";
 
 function parseBrazilianDate(value: string) {
@@ -31,6 +31,19 @@ export async function POST(request: Request) {
 
   if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime()) || startsAt >= endsAt) {
     redirect("/admin/fechar-dia");
+  }
+
+  const defaultPeriodKey =
+    startTime === "12:00" && endTime === "14:00"
+      ? "midday-break"
+      : startTime === "21:00" && endTime === "21:59"
+        ? "night-close"
+        : startTime === "21:00" && endTime === "22:00"
+          ? "night-close"
+          : null;
+
+  if (defaultPeriodKey) {
+    clearDefaultBlockedPeriodReleased(barber.id, date, defaultPeriodKey);
   }
 
   createBlockedSlot({

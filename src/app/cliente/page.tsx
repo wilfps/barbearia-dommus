@@ -6,6 +6,7 @@ import { getBookingDurationMinutes, listScheduleSlots } from "@/lib/booking";
 import { requireRoles } from "@/lib/auth";
 import { formatBrazilDateInput, formatBrazilTime, getBrazilDayRange, toBrazilDateObject } from "@/lib/brazil-time";
 import {
+  ensureDefaultBlockedPeriodsForDate,
   ensureBlockedDay,
   getPrimaryBarber,
   listAppointmentsByBarberOnDate,
@@ -50,10 +51,12 @@ export default async function ClientePage({ searchParams }: { searchParams: Sear
   ]);
 
   if (selectedBarber) {
+    ensureDefaultBlockedPeriodsForDate(selectedBarber.id, selectedDate);
     getQuickWeekDates(new Date())
       .filter((item) => item.rolledToNextWeek)
       .forEach((item) => {
         ensureBlockedDay(selectedBarber.id, item.iso, "Fechado por padrão até o barbeiro liberar");
+        ensureDefaultBlockedPeriodsForDate(selectedBarber.id, item.iso);
       });
   }
 
