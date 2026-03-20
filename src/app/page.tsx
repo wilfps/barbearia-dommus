@@ -1,6 +1,6 @@
 import Image from "next/image";
 import { redirect } from "next/navigation";
-import { ArrowRight, Sparkles } from "lucide-react";
+import { ArrowRight, Instagram, Sparkles } from "lucide-react";
 import { HomeAccessTabs } from "@/components/home-access-tabs";
 import { getSession } from "@/lib/auth";
 import { getSiteSetting, listServices } from "@/lib/db";
@@ -67,6 +67,16 @@ export default async function Home({ searchParams }: { searchParams: SearchParam
                 </a>
                 <a href="#acesso" className="rounded-full px-3 py-2 transition hover:bg-white/[0.04] hover:text-amber-50">
                   Cadastro
+                </a>
+                <a
+                  href="https://www.instagram.com/dommus_barbearia/"
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label="Instagram da Dommus Barbearia"
+                  className="inline-flex items-center gap-2 rounded-full px-3 py-2 transition hover:bg-white/[0.04] hover:text-amber-50"
+                >
+                  <Instagram className="size-4" />
+                  Instagram
                 </a>
               </nav>
 
