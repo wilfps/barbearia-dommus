@@ -15,7 +15,7 @@ export default async function Home({ searchParams }: { searchParams: SearchParam
   ]);
   const params = await searchParams;
   const isBlocked = !site.is_open;
-  const featuredServices = services.slice(0, 4);
+  const featuredServices = services;
 
   if (session && (!isBlocked || session.role === "OWNER")) {
     redirect("/dashboard");
@@ -167,33 +167,28 @@ export default async function Home({ searchParams }: { searchParams: SearchParam
           </div>
         </section>
 
-        <section id="servicos" className="mt-6 rounded-[34px] border border-amber-200/10 bg-[#120d0b]/92 px-4 py-6 shadow-[0_30px_100px_rgba(0,0,0,0.42)] sm:px-6 sm:py-8 lg:px-8 lg:py-10">
+        <section id="servicos" className="mt-6 rounded-[34px] border border-amber-200/10 bg-[#120d0b]/92 px-4 py-5 shadow-[0_30px_100px_rgba(0,0,0,0.42)] sm:px-5 sm:py-6 lg:px-6 lg:py-7">
           <div className="text-center">
             <p className="text-[10px] uppercase tracking-[0.42em] text-amber-200/70">Servicos</p>
-            <h2 className="mt-3 font-[var(--font-display)] text-3xl text-amber-50 sm:text-4xl lg:text-5xl">Escolha seu proximo cuidado</h2>
-            <p className="mx-auto mt-4 max-w-3xl text-sm leading-7 text-stone-300 sm:text-base">
+            <h2 className="mt-3 font-[var(--font-display)] text-2xl text-amber-50 sm:text-3xl lg:text-4xl">Escolha seu proximo cuidado</h2>
+            <p className="mx-auto mt-3 max-w-3xl text-sm leading-7 text-stone-300 sm:text-base">
               A vitrine da Dommus ja aparece aqui para induzir o cliente a seguir direto para a agenda sem perder tempo.
             </p>
           </div>
 
-          <div className="mt-8 flex snap-x snap-mandatory gap-4 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:grid md:grid-cols-2 md:overflow-visible md:pb-0 xl:grid-cols-4">
+          <div className="mt-6 flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {featuredServices.map((service) => (
               <article
                 key={service.id}
-                className="min-w-[276px] snap-start overflow-hidden rounded-[28px] border border-amber-200/10 bg-[linear-gradient(180deg,rgba(255,222,173,0.04),rgba(12,9,7,0.86))] shadow-[0_20px_55px_rgba(0,0,0,0.32)] md:min-w-0"
+                className="min-w-[220px] max-w-[220px] snap-start overflow-hidden rounded-[24px] border border-amber-200/10 bg-[linear-gradient(180deg,rgba(255,222,173,0.04),rgba(12,9,7,0.86))] shadow-[0_18px_45px_rgba(0,0,0,0.28)] sm:min-w-[240px] sm:max-w-[240px] lg:min-w-[248px] lg:max-w-[248px]"
               >
-                <div className="relative h-44 sm:h-48 md:h-52">
+                <div className="relative h-36 sm:h-40 lg:h-44">
                   <Image src={service.image_path} alt={service.name} fill className="object-cover object-center" />
                   <div className="absolute inset-0 bg-[linear-gradient(180deg,transparent_18%,rgba(12,9,7,0.9))]" />
                 </div>
-                <div className="px-4 pb-4 pt-4 sm:px-5 sm:pb-5">
-                  <div className="flex items-start justify-between gap-4">
-                    <h3 className="font-[var(--font-display)] text-xl text-amber-50 sm:text-2xl">{service.name}</h3>
-                    <span className="rounded-full border border-amber-300/25 bg-amber-300/10 px-3 py-1 text-xs font-semibold text-amber-100 sm:text-sm">
-                      {(service.price_in_cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-                    </span>
-                  </div>
-                  <p className="mt-3 text-sm leading-7 text-stone-300">{service.description}</p>
+                <div className="px-4 pb-4 pt-3">
+                  <h3 className="font-[var(--font-display)] text-lg text-amber-50 sm:text-xl">{service.name}</h3>
+                  <p className="mt-2 text-sm leading-6 text-stone-300">{service.description}</p>
                 </div>
               </article>
             ))}
