@@ -72,16 +72,15 @@ export default async function Home({ searchParams }: { searchParams: SearchParam
             </h1>
 
             <p className="mt-5 max-w-3xl text-center text-lg leading-8 text-amber-100/90 lg:text-left">
-              Não é só uma barbearia. É padrão.
-            </p>
-
-            <p className="mt-5 max-w-3xl text-center text-base leading-7 text-stone-300 sm:text-lg sm:leading-8 lg:text-left">
-              A Dommus foi criada para quem não aceita o básico. Aqui, cada atendimento é pensado nos mínimos detalhes,
-              com precisão, presença e um nível de cuidado que você percebe desde o primeiro momento.
+              Sua melhor versão pede a experiência Dommus!
             </p>
 
             <p className="mt-5 max-w-3xl text-center text-base leading-7 text-stone-300 sm:text-lg sm:leading-8 lg:text-left">
               Porque quando se trata da sua imagem, o padrão é sempre o mais alto.
+            </p>
+
+            <p className="mt-5 max-w-3xl text-center text-base leading-7 text-stone-300 sm:text-lg sm:leading-8 lg:text-left">
+              Faça seu cadastro e agende seu horário!
             </p>
           </div>
         </div>
