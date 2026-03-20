@@ -176,7 +176,7 @@ export default async function Home({ searchParams }: { searchParams: SearchParam
             </p>
           </div>
 
-          <div className="mt-6 flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="mt-6 flex snap-x snap-mandatory gap-3 overflow-x-auto pb-4 pr-2 [scrollbar-color:rgba(198,164,108,0.55)_rgba(255,255,255,0.04)] [scrollbar-width:thin] [&::-webkit-scrollbar]:h-2.5 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-white/[0.04] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:border [&::-webkit-scrollbar-thumb]:border-amber-200/15 [&::-webkit-scrollbar-thumb]:bg-amber-300/45">
             {featuredServices.map((service) => (
               <article
                 key={service.id}
