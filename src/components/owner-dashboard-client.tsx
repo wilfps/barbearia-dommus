@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useMemo, useState } from "react";
 import { StatCard } from "@/components/stat-card";
@@ -69,6 +69,31 @@ function roleLabel(role: string) {
 
 function normalizeSearch(value: string) {
   return value.trim().toLowerCase();
+}
+
+function escapeCsv(value: string | number | null | undefined) {
+  const text = String(value ?? "");
+  if (/[",;\n]/.test(text)) {
+    return `"${text.replace(/"/g, '""')}"`;
+  }
+  return text;
+}
+
+function downloadCsv(filename: string, headers: string[], rows: Array<Array<string | number | null | undefined>>) {
+  const csv = [
+    headers.map((header) => escapeCsv(header)).join(";"),
+    ...rows.map((row) => row.map((cell) => escapeCsv(cell)).join(";")),
+  ].join("\n");
+
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }
 
 async function postJson<T>(url: string, payload: Record<string, unknown>) {
@@ -196,6 +221,53 @@ export function OwnerDashboardClient({
     });
   }, [allUsers, customerQuery]);
 
+  const exportCustomers = () => {
+    const customers = allUsers
+      .filter((person) => person.role === "CUSTOMER")
+      .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+
+    downloadCsv(
+      "clientes-dommus.csv",
+      ["Nome", "E-mail", "Telefone", "Permissão", "Status"],
+      customers.map((customer) => [
+        customer.name,
+        customer.email,
+        customer.phone,
+        roleLabel(customer.role),
+        customer.is_active ? "Ativo" : "Bloqueado",
+      ]),
+    );
+  };
+
+  const exportPendingAppointments = () => {
+    downloadCsv(
+      "pendencias-conversao-dommus.csv",
+      ["Cliente", "Telefone", "E-mail", "Serviço", "Barbeiro", "Criado em"],
+      pendingList.map((appointment) => [
+        appointment.customer_name,
+        appointment.customer_phone,
+        appointment.customer_email,
+        appointment.service_name,
+        appointment.barber_name,
+        formatDateTime(appointment.created_at),
+      ]),
+    );
+  };
+
+  const exportLeads = () => {
+    downloadCsv(
+      "leads-dommus.csv",
+      ["Nome", "Telefone", "E-mail", "Serviço", "Última etapa"],
+      leadList.map((lead) => [
+        lead.user_name,
+        lead.user_phone,
+        lead.user_email,
+        lead.service_name,
+        lead.last_step,
+      ]),
+    );
+  };
+
   const saveUser = async (input: { userId: string; role: string; isActive: boolean }) => {
     try {
       setSavingUserId(input.userId);
@@ -265,9 +337,9 @@ export function OwnerDashboardClient({
     <div className="grid gap-6">
       <div className="grid gap-4 md:grid-cols-4">
         <StatCard label="Sistema" value={siteOpen === "true" ? "Liberado" : "Bloqueado"} helper="Bloqueio com mensagem na tela." />
-        <StatCard label="Usuarios" value={`${allUsers.length}`} helper="Total de contas cadastradas." />
+        <StatCard label="Usuários" value={`${allUsers.length}`} helper="Total de contas cadastradas." />
         <StatCard label="Pendentes" value={`${pendingList.length}`} helper="Reservas aguardando sinal." />
-        <StatCard label="Leads" value={`${leadList.length}`} helper="Clientes que iniciaram e nao converteram." />
+        <StatCard label="Leads" value={`${leadList.length}`} helper="Clientes que iniciaram e não converteram." />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[0.7fr_1.3fr]">
@@ -355,7 +427,7 @@ export function OwnerDashboardClient({
       </div>
 
       <section className="glass rounded-[24px] p-4 sm:rounded-[32px] sm:p-6">
-        <p className="text-xs uppercase tracking-[0.45em] text-amber-200/60">Precos</p>
+        <p className="text-xs uppercase tracking-[0.45em] text-amber-200/60">Preços</p>
         <h2 className="mt-3 text-2xl text-amber-50 sm:text-3xl">Alterar valores dos serviços</h2>
         <p className="mt-3 max-w-3xl text-sm text-stone-300">
           O sinal da reserva sempre será calculado automaticamente como 50% do valor que você definir aqui.
@@ -367,7 +439,7 @@ export function OwnerDashboardClient({
                 <div>
                   <p className="text-lg text-amber-50">{service.name}</p>
                   <p className="mt-1 text-sm text-stone-400">
-                    Valor atual: {formatMoney(service.price_in_cents)} | Sinal automatico:{" "}
+                    Valor atual: {formatMoney(service.price_in_cents)} | Sinal automático:{" "}
                     {formatMoney(Math.round(service.price_in_cents / 2))}
                   </p>
                 </div>
@@ -397,7 +469,7 @@ export function OwnerDashboardClient({
                     onClick={() => void saveServicePrice(service.id)}
                     className="rounded-2xl border border-amber-300/60 px-4 py-3 font-semibold text-amber-100 transition hover:bg-amber-300/10 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    {serviceSavingId === service.id ? "Salvando..." : "Salvar preco"}
+                    {serviceSavingId === service.id ? "Salvando..." : "Salvar preço"}
                   </button>
                 </div>
               </div>
@@ -410,15 +482,15 @@ export function OwnerDashboardClient({
         <p className="text-xs uppercase tracking-[0.45em] text-amber-200/60">Checkout online</p>
         <h2 className="mt-3 text-2xl text-amber-50 sm:text-3xl">Preparar checkout da InfinitePay</h2>
         <p className="mt-3 max-w-3xl text-sm text-stone-300">
-          Deixe a estrutura pronta aqui. Quando o Gabriel criar a conta, voce so ajusta a InfiniteTag e ativa a integracao
-          real sem precisar mexer no codigo.
+          Deixe a estrutura pronta aqui. Quando o Gabriel criar a conta, você só ajusta a InfiniteTag e ativa a integração
+          real sem precisar mexer no código.
         </p>
 
         <div className="mt-4 grid gap-4 md:grid-cols-3">
           <StatCard
             label="Provider"
             value="InfinitePay"
-            helper="Fluxo preparado para checkout externo com botao neutro."
+            helper="Fluxo preparado para checkout externo com botão neutro."
           />
           <StatCard
             label="Handle"
@@ -426,8 +498,8 @@ export function OwnerDashboardClient({
             helper="A InfiniteTag do recebedor entra aqui."
           />
           <StatCard
-            label="Ativacao"
-            value={checkoutConfig.readyForActivation ? "Pronto" : "Em preparacao"}
+            label="Ativação"
+            value={checkoutConfig.readyForActivation ? "Pronto" : "Em preparação"}
             helper="Com a handle salva, o checkout já pode gerar o link real."
           />
         </div>
@@ -471,7 +543,7 @@ export function OwnerDashboardClient({
           </div>
           <div className="lg:col-span-2">
             <button type="submit" className="rounded-2xl bg-amber-300 px-4 py-3 font-semibold text-stone-950 transition hover:bg-amber-200">
-              Salvar configuracao do checkout
+              Salvar configuração do checkout
             </button>
           </div>
         </form>
@@ -483,6 +555,15 @@ export function OwnerDashboardClient({
         <p className="mt-3 max-w-3xl text-sm text-stone-300">
           Aqui você consulta a base de clientes da Dommus por nome ou telefone e, se quiser, também ajusta a permissão na hora.
         </p>
+        <div className="mt-4 flex flex-wrap gap-3">
+          <button
+            type="button"
+            onClick={exportCustomers}
+            className="rounded-2xl border border-amber-300/45 bg-amber-300/10 px-4 py-2 text-sm font-semibold text-amber-100 transition hover:border-amber-300/65 hover:bg-amber-300/15"
+          >
+            Exportar clientes CSV
+          </button>
+        </div>
 
         <div className="mt-6">
           <input
@@ -509,7 +590,7 @@ export function OwnerDashboardClient({
               ))
             ) : (
               <div className="rounded-[24px] border border-dashed border-white/10 bg-black/15 p-5 text-sm text-stone-400">
-                Cadastro nao encontrado.
+                Cadastro não encontrado.
               </div>
             )
           ) : (
@@ -523,8 +604,17 @@ export function OwnerDashboardClient({
 
       <div className="grid gap-6 xl:grid-cols-2">
         <section className="glass rounded-[24px] p-4 sm:rounded-[32px] sm:p-6">
-          <p className="text-xs uppercase tracking-[0.45em] text-amber-200/60">Check-in nao concluido</p>
-          <h2 className="mt-3 text-2xl text-amber-50 sm:text-3xl">Relatorio para conversao</h2>
+          <p className="text-xs uppercase tracking-[0.45em] text-amber-200/60">Check-in não concluído</p>
+          <h2 className="mt-3 text-2xl text-amber-50 sm:text-3xl">Relatório para conversão</h2>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={exportPendingAppointments}
+              className="rounded-2xl border border-amber-300/45 bg-amber-300/10 px-4 py-2 text-sm font-semibold text-amber-100 transition hover:border-amber-300/65 hover:bg-amber-300/15"
+            >
+              Exportar pendências CSV
+            </button>
+          </div>
           <div className="mt-6 space-y-4">
             {pendingList.length ? (
               pendingList.map((appointment) => (
@@ -543,13 +633,13 @@ export function OwnerDashboardClient({
                     onClick={() => void removePendingAppointment(appointment.id)}
                     className="mt-4 rounded-2xl border border-rose-400/50 px-4 py-2 text-sm font-semibold text-rose-100 transition hover:bg-rose-500/10 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    {removingAppointmentId === appointment.id ? "Excluindo..." : "Excluir do relatorio"}
+                    {removingAppointmentId === appointment.id ? "Excluindo..." : "Excluir do relatório"}
                   </button>
                 </div>
               ))
             ) : (
               <div className="rounded-[24px] border border-dashed border-white/10 bg-black/15 p-5 text-sm text-stone-400">
-                Nenhum registro pendente no relatorio de conversao.
+                Nenhum registro pendente no relatório de conversão.
               </div>
             )}
           </div>
@@ -557,16 +647,25 @@ export function OwnerDashboardClient({
 
         <section className="glass rounded-[24px] p-4 sm:rounded-[32px] sm:p-6">
           <p className="text-xs uppercase tracking-[0.45em] text-amber-200/60">Leads abandonados</p>
-          <h2 className="mt-3 text-2xl text-amber-50 sm:text-3xl">Interesse sem finalizacao</h2>
+          <h2 className="mt-3 text-2xl text-amber-50 sm:text-3xl">Interesse sem finalização</h2>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={exportLeads}
+              className="rounded-2xl border border-amber-300/45 bg-amber-300/10 px-4 py-2 text-sm font-semibold text-amber-100 transition hover:border-amber-300/65 hover:bg-amber-300/15"
+            >
+              Exportar leads CSV
+            </button>
+          </div>
           <div className="mt-6 space-y-4">
             {leadList.length ? (
               leadList.map((lead) => (
                 <div key={lead.id} className="rounded-[24px] border border-white/10 bg-black/15 p-5">
-                  <p className="text-lg text-amber-50">{lead.user_name || "Usuario nao identificado"}</p>
+                  <p className="text-lg text-amber-50">{lead.user_name || "Usuário não identificado"}</p>
                   <p className="mt-2 text-sm text-stone-300">
                     {lead.user_phone || "Sem telefone"} - {lead.user_email || "Sem e-mail"}
                   </p>
-                  <p className="mt-2 text-sm text-stone-400">{lead.service_name || "Servico ainda nao escolhido"}</p>
+                  <p className="mt-2 text-sm text-stone-400">{lead.service_name || "Serviço ainda não escolhido"}</p>
                   <p className="mt-2 text-sm text-amber-100">{lead.last_step}</p>
                   <button
                     type="button"
@@ -589,3 +688,5 @@ export function OwnerDashboardClient({
     </div>
   );
 }
+
+

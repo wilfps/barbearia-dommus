@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { addMinutes, format, isSameDay, isValid, parse, parseISO, setHours, setMinutes, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -71,6 +71,13 @@ export function AdminBlockForms({
       return aDate.getTime() - bDate.getTime();
     });
   }, [blockedSlotsState, dateDisplayValue]);
+  const orderedAllDayBlockedSlots = useMemo(() => {
+    return orderedBlockedSlots.filter((slot) => {
+      const startsAt = parseISO(slot.starts_at);
+      const endsAt = parseISO(slot.ends_at);
+      return format(startsAt, "HH:mm") === "00:00" && format(endsAt, "HH:mm") === "23:59";
+    });
+  }, [orderedBlockedSlots]);
 
   function updateDate(displayDate: string) {
     setDateDisplayValue(displayDate);
@@ -122,7 +129,7 @@ export function AdminBlockForms({
       <section className="glass rounded-[24px] p-4 sm:rounded-[30px] sm:p-6">
         <p className="text-xs uppercase tracking-[0.45em] text-amber-200/60">Fechamento</p>
         <h2 className="mt-3 text-2xl text-amber-50 sm:text-3xl">Bloquear o dia inteiro</h2>
-        <p className="mt-2 text-sm text-stone-300">Escolha dia, mês e ano para fechar toda a agenda.</p>
+        <p className="mt-2 text-sm text-stone-300">Escolha dia, mÃªs e ano para fechar toda a agenda.</p>
 
         <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-3">
           {quickDates.map((date) => {
@@ -176,9 +183,9 @@ export function AdminBlockForms({
       </section>
 
       <section className="glass rounded-[24px] p-4 sm:rounded-[30px] sm:p-6">
-        <p className="text-xs uppercase tracking-[0.45em] text-amber-200/60">Horário específico</p>
-        <h2 className="mt-3 text-2xl text-amber-50 sm:text-3xl">Bloquear um período do dia</h2>
-        <p className="mt-2 text-sm text-stone-300">Ideal para fechar da metade do dia em diante, antes do almoço ou qualquer intervalo que você quiser.</p>
+        <p className="text-xs uppercase tracking-[0.45em] text-amber-200/60">HorÃ¡rio especÃ­fico</p>
+        <h2 className="mt-3 text-2xl text-amber-50 sm:text-3xl">Bloquear um perÃ­odo do dia</h2>
+        <p className="mt-2 text-sm text-stone-300">Ideal para fechar da metade do dia em diante, antes do almoÃ§o ou qualquer intervalo que vocÃª quiser.</p>
 
         <form action="/api/admin/blocks/period" method="post" className="mt-6 grid gap-4">
           <div className="rounded-[18px] border border-white/10 bg-black/20 px-4 py-3 text-stone-100">{barberName}</div>
@@ -226,20 +233,20 @@ export function AdminBlockForms({
 
           <input
             name="reason"
-            placeholder="Motivo do bloqueio desse horário"
+            placeholder="Motivo do bloqueio desse horÃ¡rio"
             className="rounded-[18px] border border-white/10 bg-black/20 px-4 py-3 text-stone-100 placeholder:text-stone-500"
           />
           <button type="submit" className="rounded-[18px] border border-red-400/45 bg-red-500/80 px-4 py-3 font-semibold text-white transition hover:bg-red-500">
-            Fechar horário selecionado
+            Fechar horÃ¡rio selecionado
           </button>
         </form>
       </section>
 
       <section className="glass rounded-[24px] p-4 sm:col-span-2 sm:rounded-[30px] sm:p-6">
         <p className="text-xs uppercase tracking-[0.45em] text-amber-200/60">Bloqueios ativos</p>
-        <h2 className="mt-3 text-2xl text-amber-50 sm:text-3xl">Dias e horários fechados</h2>
+        <h2 className="mt-3 text-2xl text-amber-50 sm:text-3xl">Dias fechados</h2>
         <p className="mt-2 text-sm text-stone-300">
-          Aqui você vê o que já foi bloqueado e pode desbloquear qualquer dia ou horário quando quiser.
+          Aqui você vê apenas os dias fechados por completo para visualizar tudo com mais clareza.
         </p>
 
         <div className="mt-5 grid gap-4">
@@ -248,11 +255,9 @@ export function AdminBlockForms({
               {removeError}
             </div>
           ) : null}
-          {orderedBlockedSlots.length ? (
-            orderedBlockedSlots.map((slot) => {
+          {orderedAllDayBlockedSlots.length ? (
+            orderedAllDayBlockedSlots.map((slot) => {
               const startsAt = parseISO(slot.starts_at);
-              const endsAt = parseISO(slot.ends_at);
-              const isAllDay = format(startsAt, "HH:mm") === "00:00" && format(endsAt, "HH:mm") === "23:59";
               const isSelectedDay = selectedDayBlocks.some((selectedSlot) => selectedSlot.id === slot.id);
 
               return (
@@ -267,14 +272,14 @@ export function AdminBlockForms({
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <div className="space-y-2">
                       <p className="text-xs uppercase tracking-[0.35em] text-amber-200/65">
-                        {isAllDay ? "Dia inteiro bloqueado" : "Horário bloqueado"}
+                        Dia inteiro bloqueado
                       </p>
                       <h3 className="text-lg font-semibold text-amber-50">
                         {format(startsAt, "dd/MM/yyyy")} {format(startsAt, "EEEE", { locale: ptBR })}
                       </h3>
                       <div className="flex flex-wrap gap-2 text-sm text-stone-200">
                         <span className="rounded-full border border-red-400/30 bg-red-500/10 px-3 py-1 text-red-100">
-                          {isAllDay ? "Fechado o dia todo" : `${format(startsAt, "HH:mm")} até ${format(endsAt, "HH:mm")}`}
+                          Fechado o dia todo
                         </span>
                         {slot.reason ? (
                           <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-stone-300">{slot.reason}</span>
@@ -302,7 +307,7 @@ export function AdminBlockForms({
             })
           ) : (
             <div className="rounded-[22px] border border-dashed border-white/10 bg-black/15 px-4 py-6 text-sm text-stone-400">
-              Nenhum bloqueio ativo encontrado. Quando você fechar um dia ou horário, ele vai aparecer aqui para você poder desfazer depois.
+              Nenhum dia inteiro bloqueado encontrado. Quando você fechar um dia completo, ele vai aparecer aqui para você poder desfazer depois.
             </div>
           )}
         </div>
@@ -310,3 +315,4 @@ export function AdminBlockForms({
     </div>
   );
 }
+

@@ -10,7 +10,15 @@ function toBrazilianDate(isoDate: string) {
   return format(new Date(`${isoDate}T12:00:00`), "dd/MM/yyyy");
 }
 
-export function AdminDateNavigation({ selectedDate }: { selectedDate: string }) {
+export function AdminDateNavigation({
+  selectedDate,
+  navigationBasePath = "/admin",
+  agendaHrefBase = "/admin/agenda",
+}: {
+  selectedDate: string;
+  navigationBasePath?: string;
+  agendaHrefBase?: string;
+}) {
   const router = useRouter();
   const [inputValue, setInputValue] = useState(toBrazilianDate(selectedDate));
 
@@ -27,7 +35,7 @@ export function AdminDateNavigation({ selectedDate }: { selectedDate: string }) 
   }, [selectedDate]);
 
   function goToDate(isoDate: string) {
-    router.replace(`/admin?date=${isoDate}`);
+    router.replace(`${navigationBasePath}?date=${isoDate}`);
   }
 
   function shiftDay(direction: "prev" | "next") {
@@ -40,7 +48,7 @@ export function AdminDateNavigation({ selectedDate }: { selectedDate: string }) 
     event.preventDefault();
     const parsed = parse(inputValue, "dd/MM/yyyy", new Date());
     if (Number.isNaN(parsed.getTime())) return;
-    goToDate(format(parsed, "yyyy-MM-dd"));
+    router.push(`${agendaHrefBase}?date=${format(parsed, "yyyy-MM-dd")}`);
   }
 
   return (
