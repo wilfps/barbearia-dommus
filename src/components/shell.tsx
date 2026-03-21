@@ -36,16 +36,25 @@ export async function AppShell({
               Minha área
             </Link>
             {secondaryNav}
-            {!hideAdminLinks ? (
+            {!hideAdminLinks || session?.role === "OWNER" ? (
               <>
-                <Link className="rounded-full border border-white/10 px-4 py-3 text-center hover:border-amber-300/50 sm:px-4 sm:py-2" href="/admin">
-                  <Scissors className="mr-2 inline size-4" />
-                  Barbeiro
-                </Link>
-                <Link className="rounded-full border border-white/10 px-4 py-3 text-center hover:border-amber-300/50 sm:px-4 sm:py-2" href="/owner">
-                  <ShieldCheck className="mr-2 inline size-4" />
-                  Owner
-                </Link>
+                {!hideAdminLinks ? (
+                  <Link className="rounded-full border border-white/10 px-4 py-3 text-center hover:border-amber-300/50 sm:px-4 sm:py-2" href="/admin">
+                    <Scissors className="mr-2 inline size-4" />
+                    Barbeiro
+                  </Link>
+                ) : null}
+                {session?.role === "OWNER" ? (
+                  <Link className="rounded-full border border-white/10 px-4 py-3 text-center hover:border-amber-300/50 sm:px-4 sm:py-2" href="/owner">
+                    <ShieldCheck className="mr-2 inline size-4" />
+                    Owner
+                  </Link>
+                ) : !hideAdminLinks ? (
+                  <Link className="rounded-full border border-white/10 px-4 py-3 text-center hover:border-amber-300/50 sm:px-4 sm:py-2" href="/owner">
+                    <ShieldCheck className="mr-2 inline size-4" />
+                    Owner
+                  </Link>
+                ) : null}
               </>
             ) : null}
             {session ? (
