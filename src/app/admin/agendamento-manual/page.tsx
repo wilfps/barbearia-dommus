@@ -12,6 +12,7 @@ import {
   getServiceById,
   listAppointmentsByBarberOnDate,
   listBlockedSlotsByBarberOnDate,
+  listCustomers,
   listServices,
 } from "@/lib/db";
 import { getQuickWeekDates } from "@/lib/quick-dates";
@@ -36,6 +37,12 @@ export default async function AdminManualBookingPage({ searchParams }: { searchP
   const params = await searchParams;
   const barber = getPrimaryBarber();
   const services = listServices();
+  const customers = listCustomers().map((customer) => ({
+    id: customer.id,
+    name: customer.name,
+    phone: customer.phone,
+    email: customer.email,
+  }));
   const selectedDate = normalizeSelectedDate(params.date);
   if (barber?.id) {
     ensureDefaultBlockedPeriodsForDate(barber.id, selectedDate);
@@ -98,6 +105,7 @@ export default async function AdminManualBookingPage({ searchParams }: { searchP
       <AdminManualBooking
         barberId={barber?.id ?? ""}
         services={mappedServices}
+        customers={customers}
         selectedServiceId={selectedServiceId}
         selectedDate={selectedDate}
         quickDates={quickDates}

@@ -29,6 +29,32 @@ export function formatBrazilTime(date: Date | string) {
   }).format(new Date(date));
 }
 
+export function formatBrazilDate(date: Date | string) {
+  return new Intl.DateTimeFormat("pt-BR", {
+    timeZone: SAO_PAULO_TIME_ZONE,
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(new Date(date));
+}
+
+export function formatBrazilWeekday(date: Date | string, uppercase = false) {
+  const label = new Intl.DateTimeFormat("pt-BR", {
+    timeZone: SAO_PAULO_TIME_ZONE,
+    weekday: "long",
+  }).format(new Date(date));
+
+  return uppercase ? label.toUpperCase() : label;
+}
+
+export function formatBrazilDateTime(date: Date | string) {
+  return new Intl.DateTimeFormat("pt-BR", {
+    timeZone: SAO_PAULO_TIME_ZONE,
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(new Date(date));
+}
+
 export function formatBrazilDateInput(date: Date | string) {
   return new Intl.DateTimeFormat("sv-SE", {
     timeZone: SAO_PAULO_TIME_ZONE,

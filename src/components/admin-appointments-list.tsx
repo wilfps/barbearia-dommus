@@ -2,9 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
-import { formatBrazilTime } from "@/lib/brazil-time";
+import { formatBrazilDate, formatBrazilTime, formatBrazilWeekday } from "@/lib/brazil-time";
 import { formatMoney } from "@/lib/format";
 
 type AdminAppointment = {
@@ -121,10 +119,10 @@ export function AdminAppointmentsList({ initialAppointments }: { initialAppointm
                 {formatBrazilTime(scheduleDate)}
               </div>
               <div className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-stone-200">
-                {format(scheduleDate, "dd/MM/yyyy")}
+                {formatBrazilDate(scheduleDate)}
               </div>
               <div className="rounded-full border border-amber-300/30 bg-amber-300/10 px-3 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-amber-100">
-                {format(scheduleDate, "EEEE", { locale: ptBR }).toUpperCase()}
+                {formatBrazilWeekday(scheduleDate, true)}
               </div>
               <div className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-stone-200">
                 Gabriel Rodrigues

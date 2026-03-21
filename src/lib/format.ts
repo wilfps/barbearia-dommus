@@ -1,3 +1,5 @@
+import { formatBrazilDateTime } from "@/lib/brazil-time";
+
 export function formatMoney(valueInCents: number) {
   return new Intl.NumberFormat("pt-BR", {
     style: "currency",
@@ -10,10 +12,7 @@ export function formatPhone(phone: string) {
 }
 
 export function formatDateTime(date: Date | string) {
-  return new Intl.DateTimeFormat("pt-BR", {
-    dateStyle: "short",
-    timeStyle: "short",
-  }).format(new Date(date));
+  return formatBrazilDateTime(date);
 }
 
 export function parseBrazilianDate(value: string) {
@@ -35,6 +34,7 @@ export function formatBirthDate(value?: string | null) {
   if (Number.isNaN(parsed.getTime())) return "";
 
   return new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Sao_Paulo",
     dateStyle: "short",
   }).format(parsed);
 }

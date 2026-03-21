@@ -82,7 +82,7 @@ async function postJson<T>(url: string, payload: Record<string, unknown>) {
   });
 
   if (!response.ok) {
-    throw new Error("Falha ao salvar alteracao.");
+    throw new Error("Falha ao salvar alteração.");
   }
 
   return (await response.json()) as T;
@@ -216,7 +216,7 @@ export function OwnerDashboardClient({
       });
       setSiteNotice("Bloqueio do sistema salvo com sucesso.");
     } catch {
-      setSiteNotice("Nao foi possivel salvar o bloqueio agora.");
+      setSiteNotice("Não foi possível salvar o bloqueio agora.");
     } finally {
       setSiteSaving(false);
     }
@@ -307,8 +307,8 @@ export function OwnerDashboardClient({
         </section>
 
         <section className="glass rounded-[24px] p-4 sm:rounded-[32px] sm:p-6">
-          <p className="text-xs uppercase tracking-[0.45em] text-amber-200/60">Permissoes</p>
-          <h2 className="mt-3 text-2xl text-amber-50 sm:text-3xl">Buscar usuario para dar permissao</h2>
+          <p className="text-xs uppercase tracking-[0.45em] text-amber-200/60">Permissões</p>
+          <h2 className="mt-3 text-2xl text-amber-50 sm:text-3xl">Buscar usuário para dar permissão</h2>
 
           <div className="mt-6">
             <input
@@ -345,7 +345,7 @@ export function OwnerDashboardClient({
                   ))
                 ) : (
                   <div className="rounded-[24px] border border-dashed border-white/10 bg-black/15 p-5 text-sm text-stone-400">
-                    Usuario nao encontrado.
+                    Usuário não encontrado.
                   </div>
                 )}
               </div>

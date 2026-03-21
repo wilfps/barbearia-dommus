@@ -10,20 +10,62 @@ function appendPaymentStatus(url: string, status: string) {
   return `${target.pathname}${target.search}${target.hash}`;
 }
 
+function wantsJson(request: Request) {
+  const accept = request.headers.get("accept") || "";
+  const contentType = request.headers.get("content-type") || "";
+  return accept.includes("application/json") || contentType.includes("application/json");
+}
+
+type PayPayload = {
+  appointmentId: string;
+  returnTo: string;
+  paymentScope: "DEPOSIT" | "FULL";
+};
+
+async function parsePayload(request: Request): Promise<PayPayload> {
+  if (request.headers.get("content-type")?.includes("application/json")) {
+    const body = (await request.json()) as Partial<PayPayload>;
+    return {
+      appointmentId: String(body.appointmentId || ""),
+      returnTo: String(body.returnTo || "/cliente/minha-area#protocolos"),
+      paymentScope: body.paymentScope === "FULL" ? "FULL" : "DEPOSIT",
+    };
+  }
+
+  const formData = await request.formData();
+  return {
+    appointmentId: String(formData.get("appointmentId") || ""),
+    returnTo: String(formData.get("returnTo") || "/cliente/minha-area#protocolos"),
+    paymentScope: String(formData.get("paymentScope") || "DEPOSIT") === "FULL" ? "FULL" : "DEPOSIT",
+  };
+}
+
+function jsonError(message: string, status = 400) {
+  return Response.json({ success: false, message }, { status });
+}
+
 export async function POST(request: Request) {
   const user = await requireUser();
-  const formData = await request.formData();
-  const appointmentId = String(formData.get("appointmentId") || "");
-  const returnTo = String(formData.get("returnTo") || "/cliente/minha-area#protocolos");
-  const paymentScope = String(formData.get("paymentScope") || "DEPOSIT") === "FULL" ? "FULL" : "DEPOSIT";
+  const useJson = wantsJson(request);
+  const { appointmentId, returnTo, paymentScope } = await parsePayload(request);
   const appointment = getAppointmentById(appointmentId);
 
   if (!appointment || appointment.customer_id !== user.id) {
+    if (useJson) {
+      return jsonError("Reserva não encontrada.", 404);
+    }
+
     redirect("/cliente/minha-area");
   }
 
   if (appointment.deposit_status === "PAID") {
-    redirect(appendPaymentStatus(returnTo, "success"));
+    const successRedirect = appendPaymentStatus(returnTo, "success");
+
+    if (useJson) {
+      return Response.json({ success: true, redirectTo: successRedirect });
+    }
+
+    redirect(successRedirect);
   }
 
   const updatedAppointment = updateAppointmentCheckoutScope({
@@ -33,6 +75,10 @@ export async function POST(request: Request) {
   });
 
   if (!updatedAppointment) {
+    if (useJson) {
+      return jsonError("Não conseguimos preparar esse pagamento agora.", 400);
+    }
+
     redirect("/cliente/minha-area");
   }
 
@@ -40,7 +86,13 @@ export async function POST(request: Request) {
   const checkoutConfig = getInfinitePayCheckoutConfig(site);
 
   if (!checkoutConfig.handleConfigured) {
-    redirect(appendPaymentStatus(returnTo, "checkout-unavailable"));
+    const checkoutUnavailableRedirect = appendPaymentStatus(returnTo, "checkout-unavailable");
+
+    if (useJson) {
+      return jsonError("Checkout indisponível no momento.", 400);
+    }
+
+    redirect(checkoutUnavailableRedirect);
   }
 
   const origin = new URL(request.url).origin;
@@ -70,6 +122,10 @@ export async function POST(request: Request) {
       },
     });
 
+    if (useJson) {
+      return Response.json({ success: true, checkoutUrl: checkout.checkoutUrl });
+    }
+
     redirect(checkout.checkoutUrl);
   } catch (error) {
     if (isRedirectError(error)) {
@@ -77,6 +133,11 @@ export async function POST(request: Request) {
     }
 
     console.error("InfinitePay checkout error:", error);
+
+    if (useJson) {
+      return jsonError("Não conseguimos abrir o pagamento agora.", 500);
+    }
+
     redirect(appendPaymentStatus(returnTo, "checkout-error"));
   }
 }

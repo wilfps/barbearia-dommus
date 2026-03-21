@@ -20,6 +20,7 @@ type SearchParams = Promise<{
   date?: string | string[];
   serviceIds?: string;
   serviceId?: string | string[];
+  bookingError?: string | string[];
 }>;
 
 function normalizeSelectedServiceIds(
@@ -36,6 +37,24 @@ function normalizeSelectedServiceIds(
   const legacy = Array.isArray(rawLegacy) ? rawLegacy : rawLegacy ? [rawLegacy] : [];
   const values = [...combined, ...legacy];
   return values.filter((value, index) => allServiceIds.includes(value) && values.indexOf(value) === index);
+}
+
+function getBookingErrorMessage(rawError: string | string[] | undefined) {
+  const value = Array.isArray(rawError) ? rawError[0] : rawError;
+
+  if (value === "slot-unavailable") {
+    return "Esse horário acabou de ficar indisponível. Escolha outro para continuar.";
+  }
+
+  if (value === "missing-barber") {
+    return "Não encontramos o barbeiro principal para concluir essa reserva agora.";
+  }
+
+  if (value === "booking-create-failed" || value === "1") {
+    return "Não conseguimos criar sua reserva agora. Tente novamente em instantes.";
+  }
+
+  return null;
 }
 
 export default async function ClientePage({ searchParams }: { searchParams: SearchParams }) {
@@ -77,6 +96,7 @@ export default async function ClientePage({ searchParams }: { searchParams: Sear
     .filter((slot) => formatBrazilTime(slot.starts_at) === "00:00" && formatBrazilTime(slot.ends_at) === "23:59")
     .map((slot) => formatBrazilDateInput(slot.starts_at));
   const isSelectedDateBlocked = blockedFullDayDates.includes(selectedDate);
+  const bookingErrorMessage = getBookingErrorMessage(params.bookingError);
 
   const selectedDayRange = getBrazilDayRange(selectedDate);
 
@@ -165,7 +185,13 @@ export default async function ClientePage({ searchParams }: { searchParams: Sear
               ) : null}
             </div>
 
-            <div className="mt-6">
+            <div className="mt-6 space-y-4">
+              {bookingErrorMessage ? (
+                <div className="rounded-2xl border border-red-500/35 bg-red-500/10 px-4 py-4 text-sm text-red-100">
+                  {bookingErrorMessage}
+                </div>
+              ) : null}
+
               {selectedServices.length && selectedBarber && !isSelectedDateBlocked ? (
                 <CustomerScheduleForm
                   serviceIds={selectedServices.map((service) => service.id)}

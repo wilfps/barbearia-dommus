@@ -2,6 +2,7 @@
 import { redirect } from "next/navigation";
 import { isRedirectError } from "next/dist/client/components/redirect-error";
 import { BirthDateInput } from "@/components/birth-date-input";
+import { CustomerAppointmentsPanel } from "@/components/customer-appointments-panel";
 import { CheckoutScrollFocus } from "@/components/checkout-scroll-focus";
 import { AppShell } from "@/components/shell";
 import { StatCard } from "@/components/stat-card";
@@ -13,9 +14,8 @@ import {
   listUserAppointments,
   markAppointmentPaid,
 } from "@/lib/db";
-import { formatBirthDate, formatDateTime, formatMoney } from "@/lib/format";
+import { formatBirthDate } from "@/lib/format";
 import { checkInfinitePayPayment, getInfinitePayCheckoutConfig } from "@/lib/integrations/infinitepay";
-import { buildPixCheckoutPayload, getPixIntegrationConfig } from "@/lib/integrations/pix";
 
 type SearchParams = Promise<{
   checkout?: string;
@@ -111,7 +111,6 @@ export default async function ClienteMinhaAreaPage({ searchParams }: { searchPar
   const confirmedAppointments = appointments.filter((appointment) => appointment.status === "CONFIRMED");
   const avatarSrc = user.avatar_path ? `${user.avatar_path}?v=${encodeURIComponent(user.updated_at)}` : null;
   const needsBirthDate = !user.birth_date;
-  const pixConfig = getPixIntegrationConfig();
 
   return (
     <AppShell
@@ -193,155 +192,20 @@ export default async function ClienteMinhaAreaPage({ searchParams }: { searchPar
             <h2 className="mt-3 text-2xl text-amber-50 sm:text-3xl">Finalize seu pagamento</h2>
             <p className="mt-2 text-sm text-stone-300">
               Checkout online: {checkoutConfig.handleConfigured ? "ativo para gerar link real" : "aguardando configuração do admin"}.
-              {" "}PIX: {pixConfig.tokenConfigured && pixConfig.pixKeyConfigured ? "estrutura pronta para integração real" : "modo preparação"}.
             </p>
-            <div className="mt-6 space-y-4">
-              {pendingAppointments.map((appointment) => {
-                const payingFull = (appointment.payment_scope || "DEPOSIT") === "FULL";
-                const amountDue = appointment.checkout_amount_in_cents || appointment.deposit_in_cents;
-
-                return (
-                <div
-                  key={appointment.id}
-                  data-appointment-id={appointment.id}
-                  className={`rounded-[24px] border bg-black/15 p-5 ${
-                    params.checkout === appointment.id
-                      ? "border-amber-300/50 shadow-[0_0_24px_rgba(210,178,124,0.12)]"
-                      : "border-white/10"
-                  }`}
-                >
-                  <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                    <div>
-                      <p className="text-xs uppercase tracking-[0.35em] text-amber-200/60">{appointment.protocol_code}</p>
-                      <h3 className="mt-2 text-xl text-amber-50">{appointment.service_name}</h3>
-                      <p className="mt-2 text-sm text-stone-300">
-                        {appointment.barber_name} - {formatDateTime(appointment.scheduled_at)}
-                      </p>
-                    </div>
-                    <div className="text-sm md:text-right">
-                      <p className="text-stone-400">{payingFull ? "Valor total da reserva" : "Sinal da reserva"}</p>
-                      <p className="font-semibold text-amber-100">{formatMoney(amountDue)}</p>
-                      <p className="mt-1 font-medium text-amber-200">Pagamento pendente</p>
-                    </div>
-                  </div>
-                  <div className="mt-4 flex flex-wrap gap-2 text-sm">
-                    <span
-                      className={`rounded-full border px-3 py-2 ${
-                        !payingFull
-                          ? "border-amber-300/35 bg-amber-300/10 text-amber-100"
-                          : "border-white/10 bg-black/10 text-stone-300"
-                      }`}
-                    >
-                      Reservar com sinal: {formatMoney(appointment.deposit_in_cents)}
-                    </span>
-                    <span
-                      className={`rounded-full border px-3 py-2 ${
-                        payingFull
-                          ? "border-emerald-400/35 bg-emerald-400/10 text-emerald-200"
-                          : "border-white/10 bg-black/10 text-stone-300"
-                      }`}
-                    >
-                      Pagar tudo: {formatMoney(appointment.total_price_in_cents)}
-                    </span>
-                  </div>
-                  <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-                    {(() => {
-                      const pixPayload = buildPixCheckoutPayload({
-                        amountInCents: amountDue,
-                        protocolCode: appointment.protocol_code,
-                        customerName: user.name,
-                        customerEmail: user.email,
-                        customerPhone: user.phone,
-                        description: payingFull
-                          ? `Pagamento da reserva - ${appointment.service_name}`
-                          : `Sinal da reserva - ${appointment.service_name}`,
-                      });
-
-                      return <input type="hidden" name={`pix-preview-${appointment.id}`} value={JSON.stringify(pixPayload)} />;
-                    })()}
-                    <form action="/api/bookings/pay" method="post">
-                      <input type="hidden" name="appointmentId" value={appointment.id} />
-                      <input type="hidden" name="returnTo" value="/cliente/minha-area#checkout" />
-                      <input type="hidden" name="paymentScope" value="DEPOSIT" />
-                      <button type="submit" className="rounded-2xl bg-amber-300 px-4 py-2 font-semibold text-stone-950 transition hover:bg-amber-200">
-                        Pagar sinal
-                      </button>
-                    </form>
-                    <form action="/api/bookings/pay" method="post">
-                      <input type="hidden" name="appointmentId" value={appointment.id} />
-                      <input type="hidden" name="returnTo" value="/cliente/minha-area#checkout" />
-                      <input type="hidden" name="paymentScope" value="FULL" />
-                      <button type="submit" className="rounded-2xl border border-emerald-400/35 bg-emerald-400/10 px-4 py-2 font-semibold text-emerald-200 transition hover:bg-emerald-400/20">
-                        Pagar tudo
-                      </button>
-                    </form>
-                    <form action="/api/customer/appointments/cancel" method="post">
-                      <input type="hidden" name="appointmentId" value={appointment.id} />
-                      <input type="hidden" name="returnTo" value="/cliente/minha-area#checkout" />
-                      <button type="submit" className="rounded-2xl border border-red-500/45 bg-red-500/10 px-4 py-2 font-semibold text-red-200 transition hover:bg-red-500/20">
-                        Cancelar e escolher novamente
-                      </button>
-                    </form>
-                  </div>
-                </div>
-              );
-              })}
-              {!pendingAppointments.length ? (
-                <div className="rounded-[24px] border border-dashed border-white/10 bg-black/15 p-5 text-sm text-stone-400">
-                  Nenhum pagamento pendente no momento.
-                </div>
-              ) : null}
-            </div>
+            <CustomerAppointmentsPanel
+              pendingAppointments={pendingAppointments}
+              confirmedAppointments={confirmedAppointments}
+              payment={params.payment}
+            />
           </section>
         </div>
 
         <section id="protocolos" className="glass rounded-[24px] p-4 sm:rounded-[32px] sm:p-6">
           <p className="text-xs uppercase tracking-[0.45em] text-amber-200/60">Meus protocolos</p>
           <h2 className="mt-3 text-2xl text-amber-50 sm:text-3xl">Reservas ativas confirmadas</h2>
-          <div className="mt-6 space-y-4">
-            {confirmedAppointments.map((appointment) => (
-              <div key={appointment.id} className="rounded-[24px] border border-white/10 bg-black/15 p-5">
-                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.35em] text-amber-200/60">{appointment.protocol_code}</p>
-                    <h3 className="mt-2 text-xl text-amber-50">{appointment.service_name}</h3>
-                    <p className="mt-2 text-sm text-stone-300">
-                      {appointment.barber_name} - {formatDateTime(appointment.scheduled_at)}
-                    </p>
-                  </div>
-                  <div className="text-sm md:text-right">
-                    <p className="text-stone-400">
-                      {appointment.paid_amount_in_cents && appointment.paid_amount_in_cents >= appointment.total_price_in_cents
-                        ? "Pagamento total"
-                        : "Sinal da reserva"}
-                    </p>
-                    <p className="font-semibold text-amber-100">
-                      {formatMoney(appointment.paid_amount_in_cents || appointment.deposit_in_cents)}
-                    </p>
-                    <p className="mt-1 font-medium text-emerald-300">
-                      {appointment.paid_amount_in_cents && appointment.paid_amount_in_cents >= appointment.total_price_in_cents
-                        ? "Pagamento total confirmado"
-                        : "Pagamento confirmado"}
-                    </p>
-                  </div>
-                </div>
-                <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-                  <p className="text-sm text-emerald-300">Reserva ativa com protocolo pronto para identificação junto ao barbeiro.</p>
-                  <form action="/api/customer/appointments/cancel" method="post">
-                    <input type="hidden" name="appointmentId" value={appointment.id} />
-                    <input type="hidden" name="returnTo" value="/cliente/minha-area#checkout" />
-                    <button type="submit" className="rounded-2xl border border-red-500/45 bg-red-500/10 px-4 py-2 font-semibold text-red-200 transition hover:bg-red-500/20">
-                      Cancelar e escolher novamente
-                    </button>
-                  </form>
-                </div>
-              </div>
-            ))}
-            {!confirmedAppointments.length ? (
-              <div className="rounded-[24px] border border-dashed border-white/10 bg-black/15 p-5 text-sm text-stone-400">
-                Nenhum protocolo confirmado no momento.
-              </div>
-            ) : null}
+          <div className="mt-6 rounded-[24px] border border-dashed border-white/10 bg-black/15 p-5 text-sm text-stone-400">
+            Os protocolos ativos e o cancelamento agora ficam concentrados logo acima, dentro do bloco de check-out.
           </div>
         </section>
 

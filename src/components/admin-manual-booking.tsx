@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -24,9 +24,17 @@ type Service = {
   priceCents: number;
 };
 
+type Customer = {
+  id: string;
+  name: string;
+  phone: string;
+  email: string;
+};
+
 type ManualBookingProps = {
   barberId: string;
   services: Service[];
+  customers: Customer[];
   selectedServiceId: string;
   selectedDate: string;
   quickDates: QuickDate[];
@@ -49,9 +57,24 @@ const emptyState: FormState = {
   time: "",
 };
 
+function normalizeSearch(value: string) {
+  return value.trim().toLowerCase();
+}
+
+function maskPhone(value: string) {
+  const digits = value.replace(/\D/g, "").slice(0, 11);
+
+  if (!digits) return "";
+  if (digits.length <= 2) return `(${digits}`;
+  if (digits.length <= 7) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+  if (digits.length <= 10) return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+}
+
 export function AdminManualBooking({
   barberId,
   services,
+  customers,
   selectedServiceId,
   selectedDate,
   quickDates,
@@ -71,9 +94,7 @@ export function AdminManualBooking({
   const [localSlots, setLocalSlots] = useState<Slot[]>(slots);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(
-    searchParams.get("success") === "1"
-      ? "Agendamento manual criado com sucesso."
-      : null,
+    searchParams.get("success") === "1" ? "Agendamento manual criado com sucesso." : null,
   );
   const [confirmingSlot, setConfirmingSlot] = useState<string | null>(null);
 
@@ -119,6 +140,22 @@ export function AdminManualBooking({
     return `${day}/${month}/${year}`;
   }, [formState.date]);
 
+  const suggestedCustomers = useMemo(() => {
+    const nameQuery = normalizeSearch(formState.customerName);
+    const phoneQuery = formState.customerPhone.replace(/\D/g, "");
+    if (!nameQuery && !phoneQuery) {
+      return [];
+    }
+
+    return customers
+      .filter((customer) => {
+        const matchesName = nameQuery ? normalizeSearch(customer.name).includes(nameQuery) : false;
+        const matchesPhone = phoneQuery ? customer.phone.replace(/\D/g, "").includes(phoneQuery) : false;
+        return matchesName || matchesPhone;
+      })
+      .slice(0, 5);
+  }, [customers, formState.customerName, formState.customerPhone]);
+
   const updateSearchParams = useCallback(
     (serviceId: string, date: string) => {
       const params = new URLSearchParams(searchParams.toString());
@@ -149,18 +186,17 @@ export function AdminManualBooking({
       setErrorMessage(null);
       try {
         const params = new URLSearchParams({ barberId, serviceId, date });
-        const response = await fetch(
-          `/api/admin/manual-bookings/availability?${params.toString()}`,
-          { cache: "no-store" },
-        );
+        const response = await fetch(`/api/admin/manual-bookings/availability?${params.toString()}`, {
+          cache: "no-store",
+        });
         if (!response.ok) {
-          throw new Error("Nao foi possivel atualizar os horarios.");
+          throw new Error("Não foi possível atualizar os horários.");
         }
         const payload = (await response.json()) as { slots: Slot[] };
         setLocalSlots(payload.slots);
       } catch (error) {
         console.error(error);
-        setErrorMessage("Nao foi possivel atualizar os horarios agora.");
+        setErrorMessage("Não foi possível atualizar os horários agora.");
       } finally {
         setIsLoadingSlots(false);
       }
@@ -196,6 +232,16 @@ export function AdminManualBooking({
     picker.click();
   };
 
+  const pickSuggestedCustomer = (customer: Customer) => {
+    setFormState((current) => ({
+      ...current,
+      customerName: customer.name,
+      customerPhone: maskPhone(customer.phone),
+    }));
+    setSuccessMessage(null);
+    setErrorMessage(null);
+  };
+
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setErrorMessage(null);
@@ -224,10 +270,8 @@ export function AdminManualBooking({
       });
 
       if (!response.ok) {
-        const payload = (await response.json().catch(() => null)) as
-          | { error?: string }
-          | null;
-        throw new Error(payload?.error || "Nao foi possivel criar o agendamento manual.");
+        const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(payload?.error || "Não foi possível criar o agendamento manual.");
       }
 
       setSuccessMessage("Agendamento manual criado com sucesso.");
@@ -239,9 +283,7 @@ export function AdminManualBooking({
       await refreshAvailability(formState.serviceId, formState.date);
     } catch (error) {
       console.error(error);
-      setErrorMessage(
-        error instanceof Error ? error.message : "Nao foi possivel criar o agendamento manual.",
-      );
+      setErrorMessage(error instanceof Error ? error.message : "Não foi possível criar o agendamento manual.");
     } finally {
       setIsSubmitting(false);
     }
@@ -253,23 +295,17 @@ export function AdminManualBooking({
 
     setErrorMessage(null);
     try {
-      const endpoint = slot.appointmentId
-        ? "/api/admin/appointments/remove"
-        : "/api/admin/blocks/remove";
+      const endpoint = slot.appointmentId ? "/api/admin/appointments/remove" : "/api/admin/blocks/remove";
       const response = await fetch(endpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(
-          slot.appointmentId ? { appointmentId: targetId } : { blockId: targetId },
-        ),
+        body: JSON.stringify(slot.appointmentId ? { appointmentId: targetId } : { blockId: targetId }),
       });
 
       if (!response.ok) {
-        const payload = (await response.json().catch(() => null)) as
-          | { error?: string }
-          | null;
+        const payload = (await response.json().catch(() => null)) as { error?: string } | null;
         throw new Error(payload?.error || "Não foi possível liberar esse horário.");
       }
 
@@ -277,9 +313,7 @@ export function AdminManualBooking({
       await refreshAvailability(formState.serviceId, formState.date);
     } catch (error) {
       console.error(error);
-      setErrorMessage(
-        error instanceof Error ? error.message : "Não foi possível liberar esse horário.",
-      );
+      setErrorMessage(error instanceof Error ? error.message : "Não foi possível liberar esse horário.");
     }
   };
 
@@ -291,8 +325,7 @@ export function AdminManualBooking({
           Criar reserva pelo barbeiro
         </h1>
         <p className="mt-4 max-w-xl text-sm text-[#f1e7d6]/75 sm:text-base">
-          Use esse fluxo para encaixar clientes que preferem marcar direto com o barbeiro.
-          O pagamento fica combinado na hora.
+          Use esse fluxo para encaixar clientes que preferem marcar direto com o barbeiro. O pagamento fica combinado na hora.
         </p>
 
         {successMessage ? (
@@ -308,30 +341,54 @@ export function AdminManualBooking({
         ) : null}
 
         <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
-          <input
-            className="h-14 w-full rounded-[1.1rem] border border-white/10 bg-[#1f1b18] px-5 text-base text-white outline-none transition focus:border-[#d6bf74]"
-            placeholder="Nome do cliente"
-            value={formState.customerName}
-            onChange={(event) =>
-              setFormState((current) => ({ ...current, customerName: event.target.value }))
-            }
-          />
+          <div className="space-y-3">
+            <input
+              className="h-14 w-full rounded-[1.1rem] border border-white/10 bg-[#1f1b18] px-5 text-base text-white outline-none transition focus:border-[#d6bf74]"
+              placeholder="Nome do cliente"
+              value={formState.customerName}
+              onChange={(event) =>
+                setFormState((current) => ({ ...current, customerName: event.target.value }))
+              }
+            />
 
-          <input
-            className="h-14 w-full rounded-[1.1rem] border border-white/10 bg-[#1f1b18] px-5 text-base text-white outline-none transition focus:border-[#d6bf74]"
-            placeholder="Telefone do cliente"
-            value={formState.customerPhone}
-            onChange={(event) =>
-              setFormState((current) => ({ ...current, customerPhone: event.target.value }))
-            }
-          />
+            <input
+              className="h-14 w-full rounded-[1.1rem] border border-white/10 bg-[#1f1b18] px-5 text-base text-white outline-none transition focus:border-[#d6bf74]"
+              placeholder="Telefone do cliente"
+              value={formState.customerPhone}
+              onChange={(event) =>
+                setFormState((current) => ({ ...current, customerPhone: maskPhone(event.target.value) }))
+              }
+            />
+
+            {suggestedCustomers.length ? (
+              <div className="rounded-[1.35rem] border border-white/10 bg-[#1f1b18] p-3">
+                <p className="px-2 text-[11px] uppercase tracking-[0.26em] text-[#d6bf74]">Clientes encontrados</p>
+                <div className="mt-3 space-y-2">
+                  {suggestedCustomers.map((customer) => (
+                    <button
+                      key={customer.id}
+                      type="button"
+                      onClick={() => pickSuggestedCustomer(customer)}
+                      className="flex w-full items-start justify-between rounded-[1rem] border border-white/8 bg-white/[0.02] px-4 py-3 text-left transition hover:border-[#d6bf74]/45 hover:bg-white/[0.04]"
+                    >
+                      <div>
+                        <p className="text-sm font-medium text-[#f9f1df]">{customer.name}</p>
+                        <p className="mt-1 text-xs text-white/60">{maskPhone(customer.phone)}</p>
+                      </div>
+                      <span className="text-xs uppercase tracking-[0.22em] text-[#d6bf74]">Usar</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </div>
 
           <select
             className="h-14 w-full rounded-[1.1rem] border border-white/10 bg-[#1f1b18] px-5 text-base text-white outline-none transition focus:border-[#d6bf74]"
             value={formState.serviceId}
             onChange={(event) => void handleServiceChange(event.target.value)}
           >
-            <option value="">Escolha o servico</option>
+            <option value="">Escolha o serviço</option>
             {services.map((service) => (
               <option key={service.id} value={service.id}>
                 {service.name} - {(service.priceCents / 100).toLocaleString("pt-BR", {
@@ -415,7 +472,7 @@ export function AdminManualBooking({
           Escolha o horário com facilidade
         </h2>
         <p className="mt-4 text-sm text-[#f1e7d6]/75 sm:text-base">
-          Barbeiro: Gabriel Rodrigues. Servico: {selectedService?.name ?? "Escolha um servico"}
+          Barbeiro: Gabriel Rodrigues. Serviço: {selectedService?.name ?? "Escolha um serviço"}
           {selectedService
             ? ` (${(selectedService.priceCents / 100).toLocaleString("pt-BR", {
                 style: "currency",
@@ -427,13 +484,13 @@ export function AdminManualBooking({
         <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
           {isLoadingSlots ? (
             <div className="col-span-full rounded-[1.3rem] border border-white/10 bg-[#1f1b18] px-5 py-6 text-sm text-white/70">
-              Carregando horarios...
+              Carregando horários...
             </div>
           ) : null}
 
           {!isLoadingSlots && localSlots.length === 0 ? (
             <div className="col-span-full rounded-[1.3rem] border border-dashed border-white/10 bg-[#1f1b18] px-5 py-6 text-sm text-white/60">
-              Escolha um servico e uma data para ver os horarios.
+              Escolha um serviço e uma data para ver os horários.
             </div>
           ) : null}
 
@@ -465,7 +522,7 @@ export function AdminManualBooking({
                           className="flex-1 rounded-full border border-white/15 px-3 py-2 text-sm font-semibold text-white/80"
                           onClick={() => setConfirmingSlot(null)}
                         >
-                          Nao
+                          Não
                         </button>
                       </div>
                     </div>
