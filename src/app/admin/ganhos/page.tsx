@@ -7,6 +7,7 @@ import { requireRoles } from "@/lib/auth";
 import { formatBrazilDateInput } from "@/lib/brazil-time";
 import { getPrimaryBarber, listAppointmentsForAdmin } from "@/lib/db";
 import { formatDateTime, formatMoney } from "@/lib/format";
+import { normalizeWorkingDate } from "@/lib/quick-dates";
 
 type SearchParams = Promise<{ date?: string }>;
 
@@ -39,7 +40,8 @@ function toIsoDate(value?: string) {
 }
 
 function normalizeDateInput(value?: string) {
-  return toIsoDate(value) ?? format(new Date(), "yyyy-MM-dd");
+  const resolved = toIsoDate(value) ?? format(new Date(), "yyyy-MM-dd");
+  return format(normalizeWorkingDate(resolved), "yyyy-MM-dd");
 }
 
 function getMonthSummary(selectedDate: string) {

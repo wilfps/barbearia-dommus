@@ -6,7 +6,8 @@ import { AdminDateNavigation } from "@/components/admin-date-navigation";
 import { AppShell } from "@/components/shell";
 import { requireRoles } from "@/lib/auth";
 import { formatBrazilDateInput } from "@/lib/brazil-time";
-import { getPrimaryBarber, listAppointmentsForAdmin, listBlockedSlots } from "@/lib/db";
+import { ensureDefaultBlockedPeriodsForDate, getPrimaryBarber, listAppointmentsForAdmin, listBlockedSlots } from "@/lib/db";
+import { normalizeWorkingDate } from "@/lib/quick-dates";
 
 type SearchParams = Promise<{ date?: string }>;
 
@@ -22,7 +23,8 @@ function toIsoDate(value?: string) {
 }
 
 function normalizeDateInput(value?: string) {
-  return toIsoDate(value) ?? format(new Date(), "yyyy-MM-dd");
+  const resolved = toIsoDate(value) ?? format(new Date(), "yyyy-MM-dd");
+  return format(normalizeWorkingDate(resolved), "yyyy-MM-dd");
 }
 
 function getSelectedDateLabel(selectedDate: string) {
@@ -38,6 +40,10 @@ export default async function AdminAgendaPage({ searchParams }: { searchParams: 
   const selectedDate = normalizeDateInput(params.date);
   const selectedDateLabel = getSelectedDateLabel(selectedDate);
   const primaryBarber = getPrimaryBarber();
+
+  if (primaryBarber?.id) {
+    ensureDefaultBlockedPeriodsForDate(primaryBarber.id, selectedDate);
+  }
 
   const allAppointments = listAppointmentsForAdmin(primaryBarber ? [primaryBarber.id] : undefined)
     .filter((appointment) => appointment.status !== "CANCELED")

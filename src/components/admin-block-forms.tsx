@@ -4,7 +4,7 @@ import { addMinutes, format, isSameDay, isValid, parse, parseISO, setHours, setM
 import { ptBR } from "date-fns/locale";
 import { useMemo, useState } from "react";
 import type { BlockedSlotRecord } from "@/lib/db";
-import { getQuickWeekDates } from "@/lib/quick-dates";
+import { getQuickWeekDates, normalizeWorkingDate } from "@/lib/quick-dates";
 
 export function AdminBlockForms({
   barberName,
@@ -83,7 +83,10 @@ export function AdminBlockForms({
     setDateDisplayValue(displayDate);
     const parsed = parse(displayDate, "dd/MM/yyyy", new Date());
     if (isValid(parsed)) {
-      setSelectedDateValue(format(parsed, "dd/MM/yyyy"));
+      const normalizedDate = normalizeWorkingDate(parsed);
+      const normalizedDisplayDate = format(normalizedDate, "dd/MM/yyyy");
+      setDateDisplayValue(normalizedDisplayDate);
+      setSelectedDateValue(normalizedDisplayDate);
     }
   }
 

@@ -4,7 +4,7 @@ import { AdminBlockForms } from "@/components/admin-block-forms";
 import { AppShell } from "@/components/shell";
 import { requireRoles } from "@/lib/auth";
 import { ensureBlockedDay, ensureDefaultBlockedPeriodsForDate, getPrimaryBarber, listBlockedSlots } from "@/lib/db";
-import { getQuickWeekDates } from "@/lib/quick-dates";
+import { getQuickWeekDates, normalizeWorkingDate } from "@/lib/quick-dates";
 
 type SearchParams = Promise<{
   date?: string | string[];
@@ -12,7 +12,12 @@ type SearchParams = Promise<{
 
 function resolveDate(rawDate: string | string[] | undefined) {
   const selectedDate = Array.isArray(rawDate) ? rawDate[0] : rawDate;
-  return selectedDate && /^\d{2}\/\d{2}\/\d{4}$/.test(selectedDate) ? selectedDate : format(new Date(), "dd/MM/yyyy");
+  if (selectedDate && /^\d{2}\/\d{2}\/\d{4}$/.test(selectedDate)) {
+    const [day, month, year] = selectedDate.split("/");
+    return format(normalizeWorkingDate(`${year}-${month}-${day}`), "dd/MM/yyyy");
+  }
+
+  return format(normalizeWorkingDate(new Date()), "dd/MM/yyyy");
 }
 
 export default async function FecharDiaPage({ searchParams }: { searchParams: SearchParams }) {

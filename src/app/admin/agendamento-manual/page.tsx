@@ -15,7 +15,7 @@ import {
   listCustomers,
   listServices,
 } from "@/lib/db";
-import { getQuickWeekDates } from "@/lib/quick-dates";
+import { getQuickWeekDates, normalizeWorkingDate } from "@/lib/quick-dates";
 
 type SearchParams = Promise<{
   success?: string;
@@ -26,10 +26,10 @@ type SearchParams = Promise<{
 
 function normalizeSelectedDate(value?: string) {
   if (value && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    return value;
+    return format(normalizeWorkingDate(value), "yyyy-MM-dd");
   }
 
-  return format(new Date(), "yyyy-MM-dd");
+  return format(normalizeWorkingDate(new Date()), "yyyy-MM-dd");
 }
 
 export default async function AdminManualBookingPage({ searchParams }: { searchParams: SearchParams }) {

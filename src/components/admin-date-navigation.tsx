@@ -5,9 +5,14 @@ import { ptBR } from "date-fns/locale";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+import { isSundayDate, normalizeWorkingDate } from "@/lib/quick-dates";
 
 function toBrazilianDate(isoDate: string) {
   return format(new Date(`${isoDate}T12:00:00`), "dd/MM/yyyy");
+}
+
+function toWorkingIsoDate(value: Date | string) {
+  return format(normalizeWorkingDate(value), "yyyy-MM-dd");
 }
 
 export function AdminDateNavigation({
@@ -23,9 +28,11 @@ export function AdminDateNavigation({
   const [inputValue, setInputValue] = useState(toBrazilianDate(selectedDate));
 
   const quickDates = useMemo(() => {
-    const base = new Date(`${selectedDate}T12:00:00`);
-    return [-2, -1, 0, 1, 2].map((offset) => {
-      const date = addDays(base, offset);
+    const base = normalizeWorkingDate(selectedDate);
+    return [-3, -2, -1, 0, 1, 2, 3]
+      .map((offset) => addDays(base, offset))
+      .filter((date) => !isSundayDate(date))
+      .map((date) => {
       return {
         iso: format(date, "yyyy-MM-dd"),
         weekday: format(date, "EEEE", { locale: ptBR }).toUpperCase(),
@@ -35,12 +42,16 @@ export function AdminDateNavigation({
   }, [selectedDate]);
 
   function goToDate(isoDate: string) {
-    router.replace(`${navigationBasePath}?date=${isoDate}`);
+    router.replace(`${navigationBasePath}?date=${toWorkingIsoDate(isoDate)}`);
   }
 
   function shiftDay(direction: "prev" | "next") {
-    const base = new Date(`${selectedDate}T12:00:00`);
-    const nextDate = direction === "prev" ? subDays(base, 1) : addDays(base, 1);
+    let nextDate = new Date(`${selectedDate}T12:00:00`);
+
+    do {
+      nextDate = direction === "prev" ? subDays(nextDate, 1) : addDays(nextDate, 1);
+    } while (isSundayDate(nextDate));
+
     goToDate(format(nextDate, "yyyy-MM-dd"));
   }
 
@@ -48,7 +59,7 @@ export function AdminDateNavigation({
     event.preventDefault();
     const parsed = parse(inputValue, "dd/MM/yyyy", new Date());
     if (Number.isNaN(parsed.getTime())) return;
-    router.push(`${agendaHrefBase}?date=${format(parsed, "yyyy-MM-dd")}`);
+    router.push(`${agendaHrefBase}?date=${toWorkingIsoDate(parsed)}`);
   }
 
   return (

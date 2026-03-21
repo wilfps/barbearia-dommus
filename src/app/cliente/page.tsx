@@ -14,7 +14,7 @@ import {
   listServices,
 } from "@/lib/db";
 import { formatMoney } from "@/lib/format";
-import { getQuickWeekDates } from "@/lib/quick-dates";
+import { getQuickWeekDates, normalizeWorkingDate } from "@/lib/quick-dates";
 
 type SearchParams = Promise<{
   date?: string | string[];
@@ -60,9 +60,10 @@ function getBookingErrorMessage(rawError: string | string[] | undefined) {
 export default async function ClientePage({ searchParams }: { searchParams: SearchParams }) {
   const user = await requireRoles(["CUSTOMER", "OWNER"]);
   const params = await searchParams;
-  const selectedDate = Array.isArray(params.date)
+  const rawSelectedDate = Array.isArray(params.date)
     ? params.date[0] ?? format(addDays(new Date(), 1), "yyyy-MM-dd")
     : params.date ?? format(addDays(new Date(), 1), "yyyy-MM-dd");
+  const selectedDate = format(normalizeWorkingDate(rawSelectedDate), "yyyy-MM-dd");
 
   const [services, selectedBarber] = await Promise.all([
     Promise.resolve(listServices()),

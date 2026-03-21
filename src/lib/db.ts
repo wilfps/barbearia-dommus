@@ -4,6 +4,7 @@ import crypto from "node:crypto";
 import Database from "better-sqlite3";
 import bcrypt from "bcryptjs";
 import { formatBrazilDateInput, toBrazilDateTimeIso } from "@/lib/brazil-time";
+import { isSundayDate } from "@/lib/quick-dates";
 
 const defaultDbPath = path.join(process.cwd(), "data", "dommus.db");
 const dbPath = process.env.DB_PATH?.trim() || defaultDbPath;
@@ -111,7 +112,14 @@ export type LeadRecord = {
   service_name?: string | null;
 };
 
-const defaultAutoBlockedPeriods = [
+type DefaultAutoBlockedPeriod = {
+  key: string;
+  startTime: string;
+  endTime: string;
+  reason: string;
+};
+
+const baseAutoBlockedPeriods: DefaultAutoBlockedPeriod[] = [
   {
     key: "midday-break",
     startTime: "12:00:00",
@@ -124,7 +132,26 @@ const defaultAutoBlockedPeriods = [
     endTime: "21:59:59",
     reason: "Fechado por padrão até o barbeiro liberar",
   },
-] as const;
+];
+
+function isSaturdayDate(dateIso: string) {
+  return new Date(`${dateIso}T12:00:00`).getDay() === 6;
+}
+
+function getDefaultAutoBlockedPeriodsForDate(dateIso: string) {
+  const periods = [...baseAutoBlockedPeriods];
+
+  if (isSaturdayDate(dateIso)) {
+    periods.push({
+      key: "saturday-close",
+      startTime: "14:30:00",
+      endTime: "23:59:59",
+      reason: "Fechado por padrão até o barbeiro liberar",
+    });
+  }
+
+  return periods;
+}
 
 function createId(prefix: string) {
   return `${prefix}_${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`;
@@ -895,7 +922,7 @@ function getDefaultBlockedPeriodKey(slot: Pick<BlockedSlotRecord, "starts_at" | 
   const startTime = `${String(startsAt.getUTCHours()).padStart(2, "0")}:${String(startsAt.getUTCMinutes()).padStart(2, "0")}:${String(startsAt.getUTCSeconds()).padStart(2, "0")}`;
   const endTime = `${String(endsAt.getUTCHours()).padStart(2, "0")}:${String(endsAt.getUTCMinutes()).padStart(2, "0")}:${String(endsAt.getUTCSeconds()).padStart(2, "0")}`;
 
-  const match = defaultAutoBlockedPeriods.find((period) => {
+  const match = getDefaultAutoBlockedPeriodsForDate(formatBrazilDateInput(slot.starts_at)).find((period) => {
     const expectedStart = new Date(toBrazilDateTimeIso(formatBrazilDateInput(slot.starts_at), period.startTime));
     const expectedEnd = new Date(toBrazilDateTimeIso(formatBrazilDateInput(slot.starts_at), period.endTime));
     const expectedStartTime = `${String(expectedStart.getUTCHours()).padStart(2, "0")}:${String(expectedStart.getUTCMinutes()).padStart(2, "0")}:${String(expectedStart.getUTCSeconds()).padStart(2, "0")}`;
@@ -998,7 +1025,12 @@ export function ensureBlockedDay(barberId: string, dateIso: string, reason: stri
 }
 
 export function ensureDefaultBlockedPeriodsForDate(barberId: string, dateIso: string) {
-  defaultAutoBlockedPeriods.forEach((period) => {
+  if (isSundayDate(dateIso)) {
+    ensureBlockedDay(barberId, dateIso, "Fechado por padrão até o barbeiro liberar");
+    return;
+  }
+
+  getDefaultAutoBlockedPeriodsForDate(dateIso).forEach((period) => {
     const wasReleased = db.prepare(`
       SELECT 1
       FROM released_default_blocked_periods

@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
 import { ServiceCard } from "@/components/service-card";
 import { getBookingDurationMinutes } from "@/lib/booking";
 import { formatMoney } from "@/lib/format";
-import { getQuickWeekDates } from "@/lib/quick-dates";
+import { getQuickWeekDates, normalizeWorkingDate } from "@/lib/quick-dates";
 
 type ServiceItem = {
   id: string;
@@ -97,14 +97,15 @@ export function ServiceSelectionForm({
   }
 
   function updateDateFromIso(isoDate: string) {
-    if (blockedFullDayDates.includes(isoDate)) {
+    const normalizedIsoDate = format(normalizeWorkingDate(isoDate), "yyyy-MM-dd");
+    if (blockedFullDayDates.includes(normalizedIsoDate)) {
       return;
     }
-    setSelectedDateValue(isoDate);
-    const parsed = parse(isoDate, "yyyy-MM-dd", new Date());
+    setSelectedDateValue(normalizedIsoDate);
+    const parsed = parse(normalizedIsoDate, "yyyy-MM-dd", new Date());
     setDateDisplayValue(isValid(parsed) ? format(parsed, "dd/MM/yyyy") : "");
     if (selectedIds.length) {
-      navigateToSchedule(isoDate);
+      navigateToSchedule(normalizedIsoDate);
     }
   }
 

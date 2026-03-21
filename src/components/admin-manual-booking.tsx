@@ -1,7 +1,9 @@
 ﻿"use client";
 
+import { format } from "date-fns";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { normalizeWorkingDate } from "@/lib/quick-dates";
 
 type SlotStatus = "available" | "booked" | "blocked" | "past";
 
@@ -213,10 +215,11 @@ export function AdminManualBooking({
   };
 
   const handleDateChange = async (date: string) => {
-    setFormState((current) => ({ ...current, date, time: "" }));
-    updateSearchParams(formState.serviceId, date);
+    const normalizedDate = date ? format(normalizeWorkingDate(date), "yyyy-MM-dd") : date;
+    setFormState((current) => ({ ...current, date: normalizedDate, time: "" }));
+    updateSearchParams(formState.serviceId, normalizedDate);
     if (formState.serviceId) {
-      await refreshAvailability(formState.serviceId, date);
+      await refreshAvailability(formState.serviceId, normalizedDate);
     }
   };
 

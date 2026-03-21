@@ -10,6 +10,7 @@ import { formatBrazilDateInput } from "@/lib/brazil-time";
 import { getPrimaryBarber, listAppointmentsForAdmin, listBirthdayCustomersOnDate, listCustomers } from "@/lib/db";
 import { buildWhatsAppLink, formatMoney } from "@/lib/format";
 import { buildBirthdayMessage, getWhatsAppIntegrationConfig } from "@/lib/integrations/whatsapp";
+import { normalizeWorkingDate } from "@/lib/quick-dates";
 
 type SearchParams = Promise<{ date?: string }>;
 
@@ -25,7 +26,8 @@ function toIsoDate(value?: string) {
 }
 
 function normalizeDateInput(value?: string) {
-  return toIsoDate(value) ?? format(new Date(), "yyyy-MM-dd");
+  const resolved = toIsoDate(value) ?? format(new Date(), "yyyy-MM-dd");
+  return format(normalizeWorkingDate(resolved), "yyyy-MM-dd");
 }
 
 function isSameLocalDay(isoDate: string, selectedDate: string) {
