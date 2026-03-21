@@ -181,9 +181,6 @@ export default async function Home({ searchParams }: { searchParams: SearchParam
           <div className="text-center">
             <p className="text-[10px] uppercase tracking-[0.42em] text-amber-200/70">ServiÃ§os</p>
             <h2 className="mt-3 font-[var(--font-display)] text-2xl text-amber-50 sm:text-3xl lg:text-4xl">Escolha seu prÃ³ximo cuidado</h2>
-          </div>
-
-          <div className="mt-6 flex snap-x snap-mandatory gap-3 overflow-x-auto pb-4 pr-2 [scrollbar-color:rgba(198,164,108,0.55)_rgba(255,255,255,0.04)] [scrollbar-width:thin] [&::-webkit-scrollbar]:h-2.5 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-white/[0.04] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:border [&::-webkit-scrollbar-thumb]:border-amber-200/15 [&::-webkit-scrollbar-thumb]:bg-amber-300/45">
             {featuredServices.map((service) => (
               <article
                 key={service.id}
