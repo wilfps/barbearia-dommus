@@ -133,10 +133,6 @@ export default async function Home({ searchParams }: { searchParams: SearchParam
                   Porque quando se trata da sua imagem, o padrÃ£o Ã© sempre o mais alto.
                 </p>
 
-                <p className="mt-4 max-w-2xl text-sm leading-7 text-stone-300 sm:text-base">
-                  Um inÃ­cio mais nobre, uma reserva mais rÃ¡pida e uma apresentaÃ§Ã£o que jÃ¡ passa o cuidado premium da barbearia antes mesmo do primeiro atendimento.
-                </p>
-
                 <div className="mt-8 flex flex-col gap-4 sm:flex-row">
                   <a
                     href="#acesso"
@@ -181,6 +177,9 @@ export default async function Home({ searchParams }: { searchParams: SearchParam
           <div className="text-center">
             <p className="text-[10px] uppercase tracking-[0.42em] text-amber-200/70">ServiÃ§os</p>
             <h2 className="mt-3 font-[var(--font-display)] text-2xl text-amber-50 sm:text-3xl lg:text-4xl">Escolha seu prÃ³ximo cuidado</h2>
+          </div>
+
+          <div className="mt-6 flex snap-x snap-mandatory gap-3 overflow-x-auto pb-4 pr-2 [scrollbar-color:rgba(198,164,108,0.55)_rgba(255,255,255,0.04)] [scrollbar-width:thin] [&::-webkit-scrollbar]:h-2.5 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-white/[0.04] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:border [&::-webkit-scrollbar-thumb]:border-amber-200/15 [&::-webkit-scrollbar-thumb]:bg-amber-300/45">
             {featuredServices.map((service) => (
               <article
                 key={service.id}
@@ -205,10 +204,6 @@ export default async function Home({ searchParams }: { searchParams: SearchParam
               <div className="max-w-xl">
                 <p className="text-[10px] uppercase tracking-[0.42em] text-amber-200/70">Acesso</p>
                 <h2 className="mt-4 font-[var(--font-display)] text-3xl text-amber-50 sm:text-4xl">Entre ou crie sua conta</h2>
-              </div>
-              <div className="rounded-[24px] border border-amber-200/12 bg-black/20 px-5 py-4 text-sm leading-7 text-stone-300 lg:max-w-xs">
-                <p className="text-[10px] uppercase tracking-[0.35em] text-amber-200/65">Fluxo rÃ¡pido</p>
-                <p className="mt-2">ServiÃ§o, cadastro, login e agenda organizados em uma sÃ³ entrada.</p>
               </div>
             </div>
 
