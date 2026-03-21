@@ -138,8 +138,21 @@ function isSaturdayDate(dateIso: string) {
   return new Date(`${dateIso}T12:00:00`).getDay() === 6;
 }
 
+function isMondayDate(dateIso: string) {
+  return new Date(`${dateIso}T12:00:00`).getDay() === 1;
+}
+
 function getDefaultAutoBlockedPeriodsForDate(dateIso: string) {
   const periods = [...baseAutoBlockedPeriods];
+
+  if (isMondayDate(dateIso)) {
+    periods.unshift({
+      key: "monday-morning-close",
+      startTime: "09:00:00",
+      endTime: "12:30:00",
+      reason: "Fechado por padrão até o barbeiro liberar",
+    });
+  }
 
   if (isSaturdayDate(dateIso)) {
     periods.push({
