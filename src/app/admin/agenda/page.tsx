@@ -124,9 +124,10 @@ export default async function AdminAgendaPage({ searchParams }: { searchParams: 
           <AdminDateNavigation selectedDate={selectedDate} navigationBasePath="/admin/agenda" agendaHrefBase="/admin/agenda" />
         </section>
 
-        <AdminDailyAgendaView appointments={appointments} slots={slots} />
+        <AdminDailyAgendaView appointments={appointments} slots={slots} selectedDate={selectedDate} />
       </div>
     </AppShell>
   );
 }
+
 

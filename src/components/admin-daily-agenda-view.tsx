@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { Clock3, LockKeyhole, MessageCircle, Scissors } from "lucide-react";
+import { Clock3, LockKeyhole, MessageCircle, Scissors, X } from "lucide-react";
 import { formatBrazilDate, formatBrazilTime } from "@/lib/brazil-time";
 import { buildWhatsAppLink, formatMoney } from "@/lib/format";
 
@@ -20,6 +20,7 @@ type AgendaSlot = {
   time: string;
   appointment?: AgendaAppointment;
   blocked?: boolean;
+  blockedSlotId?: string;
 };
 
 function buildFollowUpMessage(appointment: AgendaAppointment) {
@@ -29,18 +30,23 @@ function buildFollowUpMessage(appointment: AgendaAppointment) {
 export function AdminDailyAgendaView({
   appointments,
   slots,
+  selectedDate,
 }: {
   appointments: AgendaAppointment[];
   slots: AgendaSlot[];
+  selectedDate: string;
 }) {
   const [selectedSlot, setSelectedSlot] = useState<AgendaSlot | null>(null);
+  const [localSlots, setLocalSlots] = useState(slots);
+  const [confirmingBlockId, setConfirmingBlockId] = useState<string | null>(null);
+  const [removingBlockId, setRemovingBlockId] = useState<string | null>(null);
 
   const summary = useMemo(() => {
-    const occupied = slots.filter((slot) => slot.appointment).length;
-    const blocked = slots.filter((slot) => !slot.appointment && slot.blocked).length;
-    const free = slots.filter((slot) => !slot.appointment && !slot.blocked).length;
+    const occupied = localSlots.filter((slot) => slot.appointment).length;
+    const blocked = localSlots.filter((slot) => !slot.appointment && slot.blocked).length;
+    const free = localSlots.filter((slot) => !slot.appointment && !slot.blocked).length;
     return { occupied, blocked, free };
-  }, [slots]);
+  }, [localSlots]);
 
   const totalDay = useMemo(() => {
     return appointments.reduce((sum, appointment) => {
@@ -48,6 +54,43 @@ export function AdminDailyAgendaView({
       return Number.isFinite(numeric) ? sum + Math.round(numeric * 100) : sum;
     }, 0);
   }, [appointments]);
+
+  async function handleRemoveBlockedSlot(blockedSlotId: string) {
+    try {
+      setRemovingBlockId(blockedSlotId);
+      const response = await fetch("/api/admin/blocks/remove", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Requested-With": "XMLHttpRequest",
+        },
+        body: JSON.stringify({ blockId: blockedSlotId, date: selectedDate }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Falha ao liberar horário");
+      }
+
+      setLocalSlots((current) =>
+        current.map((slot) =>
+          slot.blockedSlotId === blockedSlotId
+            ? { ...slot, blocked: false, blockedSlotId: undefined }
+            : slot,
+        ),
+      );
+
+      setSelectedSlot((current) =>
+        current?.blockedSlotId === blockedSlotId
+          ? { ...current, blocked: false, blockedSlotId: undefined }
+          : current,
+      );
+      setConfirmingBlockId(null);
+    } catch {
+      // Mantemos silencioso por enquanto para não poluir a tela.
+    } finally {
+      setRemovingBlockId(null);
+    }
+  }
 
   return (
     <div className="grid gap-6 xl:grid-cols-[1.05fr_1.2fr]">
@@ -135,7 +178,7 @@ export function AdminDailyAgendaView({
           </div>
         </div>
         <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {slots.map((slot) => (
+          {localSlots.map((slot) => (
             <button
               key={slot.time}
               type="button"
@@ -160,7 +203,14 @@ export function AdminDailyAgendaView({
                   <p className="mt-1 text-xs text-stone-300">{slot.appointment.serviceName}</p>
                 </>
               ) : slot.blocked ? (
-                <p className="mt-2 text-xs uppercase tracking-[0.25em] text-amber-100/80">Bloqueado</p>
+                <div className="mt-2 flex items-end justify-between gap-2">
+                  <p className="text-xs uppercase tracking-[0.25em] text-amber-100/80">Bloqueado</p>
+                  {slot.blockedSlotId ? (
+                    <span className="inline-flex size-5 items-center justify-center rounded-full border border-red-400/30 bg-red-500/10 text-red-100">
+                      <X className="size-3" />
+                    </span>
+                  ) : null}
+                </div>
               ) : (
                 <p className="mt-2 text-xs uppercase tracking-[0.25em] text-stone-400">Livre</p>
               )}
@@ -200,7 +250,40 @@ export function AdminDailyAgendaView({
                 </div>
               </div>
             ) : selectedSlot.blocked ? (
-              <p className="mt-3 text-sm text-amber-100">Esse horário está bloqueado para a agenda do dia.</p>
+              <div className="mt-3 space-y-3 text-sm text-amber-100">
+                <p>Esse horário está bloqueado para a agenda do dia.</p>
+                {selectedSlot.blockedSlotId ? (
+                  confirmingBlockId === selectedSlot.blockedSlotId ? (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-stone-300">Liberar esse horário agora?</span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveBlockedSlot(selectedSlot.blockedSlotId!)}
+                        disabled={removingBlockId === selectedSlot.blockedSlotId}
+                        className="rounded-full bg-emerald-400 px-3 py-1.5 text-sm font-semibold text-stone-950 transition hover:bg-emerald-300 disabled:opacity-60"
+                      >
+                        Sim
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmingBlockId(null)}
+                        className="rounded-full border border-white/10 px-3 py-1.5 text-sm text-stone-200 transition hover:border-amber-300/40"
+                      >
+                        Não
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmingBlockId(selectedSlot.blockedSlotId!)}
+                      className="inline-flex rounded-full border border-red-400/30 bg-red-500/10 px-3 py-2 text-sm font-medium text-red-100 transition hover:bg-red-500/16"
+                    >
+                      <X className="mr-2 size-4" />
+                      Tirar bloqueio
+                    </button>
+                  )
+                ) : null}
+              </div>
             ) : (
               <p className="mt-3 text-sm text-emerald-200">Esse horário está livre para encaixe.</p>
             )}
