@@ -65,7 +65,7 @@ export default async function AdminAgendaPage({ searchParams }: { searchParams: 
 
   const slots = slotTimes.map((time) => {
     const appointment = allAppointments.find((item) => formatBrazilTime(item.scheduled_at) === time);
-    const blocked = allBlockedSlots.some((item) => {
+    const matchedBlockedSlot = allBlockedSlots.find((item) => {
       const start = formatBrazilTime(item.starts_at);
       const end = formatBrazilTime(item.ends_at);
       if (start === "00:00" && end === "23:59") return false;
@@ -74,7 +74,8 @@ export default async function AdminAgendaPage({ searchParams }: { searchParams: 
 
     return {
       time,
-      blocked,
+      blocked: Boolean(matchedBlockedSlot),
+      blockedSlotId: matchedBlockedSlot?.id,
       appointment: appointment
         ? {
             id: appointment.id,
@@ -83,7 +84,14 @@ export default async function AdminAgendaPage({ searchParams }: { searchParams: 
             scheduledAt: appointment.scheduled_at,
             customerPhone: appointment.customer_phone ?? undefined,
             amountLabel: formatMoney(appointment.paid_amount_in_cents || appointment.deposit_in_cents),
-            paidLabel: appointment.manual_customer_name ? "Agendamento manual" : appointment.payment_scope === "FULL" ? "Pagamento total" : appointment.deposit_status === "PAID" ? "Pagamento confirmado" : "Pagamento pendente",
+            paidLabel:
+              appointment.manual_customer_name
+                ? "Agendamento manual"
+                : appointment.payment_scope === "FULL"
+                  ? "Pagamento total"
+                  : appointment.deposit_status === "PAID"
+                    ? "Pagamento confirmado"
+                    : "Pagamento pendente",
           }
         : undefined,
     };
@@ -96,7 +104,14 @@ export default async function AdminAgendaPage({ searchParams }: { searchParams: 
     scheduledAt: appointment.scheduled_at,
     customerPhone: appointment.customer_phone ?? undefined,
     amountLabel: formatMoney(appointment.paid_amount_in_cents || appointment.deposit_in_cents),
-    paidLabel: appointment.manual_customer_name ? "Agendamento manual" : appointment.payment_scope === "FULL" ? "Pagamento total" : appointment.deposit_status === "PAID" ? "Pagamento confirmado" : "Pagamento pendente",
+    paidLabel:
+      appointment.manual_customer_name
+        ? "Agendamento manual"
+        : appointment.payment_scope === "FULL"
+          ? "Pagamento total"
+          : appointment.deposit_status === "PAID"
+            ? "Pagamento confirmado"
+            : "Pagamento pendente",
   }));
 
   return (
@@ -129,5 +144,3 @@ export default async function AdminAgendaPage({ searchParams }: { searchParams: 
     </AppShell>
   );
 }
-
-
