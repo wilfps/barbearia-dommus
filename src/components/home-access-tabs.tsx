@@ -12,7 +12,7 @@ type HomeAccessTabsProps = {
 };
 
 export function HomeAccessTabs({ email, loginError, reset, blocked }: HomeAccessTabsProps) {
-  const [tab, setTab] = useState<"login" | "register">(loginError ? "login" : "register");
+  const [tab, setTab] = useState<"login" | "register">("login");
 
   return (
     <div className="mt-8 rounded-[28px] border border-amber-200/10 bg-black/20 p-4 sm:p-5">
