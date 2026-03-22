@@ -1,8 +1,8 @@
-import Link from "next/link";
-import { format } from "date-fns";
+﻿import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { AdminDateNavigation } from "@/components/admin-date-navigation";
+import Link from "next/link";
 import { AppShell } from "@/components/shell";
+import { AdminDateNavigation } from "@/components/admin-date-navigation";
 import { requireRoles } from "@/lib/auth";
 import { formatBrazilDateInput } from "@/lib/brazil-time";
 import { getPrimaryBarber, listAppointmentsForAdmin } from "@/lib/db";
@@ -71,6 +71,12 @@ export default async function AdminGanhosPage({ searchParams }: { searchParams: 
     (sum, item) => sum + (item.paid_amount_in_cents || item.deposit_in_cents),
     0,
   );
+  const averageTicket = paidAppointments.length ? Math.round(totalReceivedMonth / paidAppointments.length) : 0;
+  const manualRevenue = paidAppointments
+    .filter((appointment) => appointment.manual_customer_name || appointment.manual_customer_phone)
+    .reduce((sum, item) => sum + (item.paid_amount_in_cents || item.deposit_in_cents), 0);
+  const onlineRevenue = totalReceivedMonth - manualRevenue;
+
   const serviceTotals = paidAppointments.reduce<Record<string, { count: number; total: number }>>((acc, appointment) => {
     const serviceName = appointment.service_name || "Serviço não informado";
     const current = acc[serviceName] ?? { count: 0, total: 0 };
@@ -79,7 +85,10 @@ export default async function AdminGanhosPage({ searchParams }: { searchParams: 
     acc[serviceName] = current;
     return acc;
   }, {});
+
   const topServiceEntry = Object.entries(serviceTotals).sort((a, b) => b[1].count - a[1].count)[0];
+  const topRevenueServiceEntry = Object.entries(serviceTotals).sort((a, b) => b[1].total - a[1].total)[0];
+
   const gainsCsvHref = buildCsvDataUri(
     ["Protocolo", "Cliente", "Telefone", "Serviço", "Barbeiro", "Data", "Tipo de pagamento", "Valor recebido"],
     paidAppointments.map((appointment) => [
@@ -128,8 +137,8 @@ export default async function AdminGanhosPage({ searchParams }: { searchParams: 
           <AdminDateNavigation selectedDate={selectedDate} />
         </section>
 
-        <div className="grid gap-4 lg:grid-cols-3">
-          <div className="rounded-[22px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.03))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] sm:rounded-[28px] sm:p-5">
+        <div className="grid gap-4 lg:grid-cols-3 xl:grid-cols-6">
+          <div className="rounded-[22px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.03))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] sm:rounded-[28px] sm:p-5 xl:col-span-2">
             <p className="text-sm text-stone-400">Total recebido no mês</p>
             <p className="mt-3 text-3xl font-semibold text-amber-50">{formatMoney(totalReceivedMonth)}</p>
             <div className="mt-4 rounded-[18px] border border-white/10 bg-black/10 px-4 py-3 text-sm text-stone-200">
@@ -146,15 +155,48 @@ export default async function AdminGanhosPage({ searchParams }: { searchParams: 
           </div>
 
           <div className="rounded-[22px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.03))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] sm:rounded-[28px] sm:p-5">
+            <p className="text-sm text-stone-400">Ticket médio</p>
+            <p className="mt-3 text-3xl font-semibold text-amber-50">{formatMoney(averageTicket)}</p>
+            <div className="mt-4 rounded-[18px] border border-white/10 bg-black/10 px-4 py-3 text-sm text-stone-200">
+              Média recebida por atendimento confirmado
+            </div>
+          </div>
+
+          <div className="rounded-[22px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.03))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] sm:rounded-[28px] sm:p-5">
+            <p className="text-sm text-stone-400">Manual x online</p>
+            <p className="mt-3 text-xl font-semibold text-amber-50">{formatMoney(manualRevenue)} / {formatMoney(onlineRevenue)}</p>
+            <div className="mt-4 rounded-[18px] border border-white/10 bg-black/10 px-4 py-3 text-sm text-stone-200">
+              Manual primeiro, online depois
+            </div>
+          </div>
+
+          <div className="rounded-[22px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.03))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] sm:rounded-[28px] sm:p-5">
             <p className="text-sm text-stone-400">Serviço que mais girou</p>
-            <p className="mt-3 text-xl font-semibold text-amber-50">
-              {topServiceEntry ? topServiceEntry[0] : "Sem atendimentos"}
-            </p>
+            <p className="mt-3 text-xl font-semibold text-amber-50">{topServiceEntry ? topServiceEntry[0] : "Sem atendimentos"}</p>
             <div className="mt-4 rounded-[18px] border border-white/10 bg-black/10 px-4 py-3 text-sm text-stone-200">
               {topServiceEntry
                 ? `${topServiceEntry[1].count} atendimento(s) - ${formatMoney(topServiceEntry[1].total)}`
                 : "Ainda não há pagamentos suficientes para este mês."}
             </div>
+          </div>
+        </div>
+
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div className="rounded-[22px] border border-white/10 bg-black/15 p-5">
+            <p className="text-xs uppercase tracking-[0.35em] text-amber-200/60">Maior faturamento</p>
+            <h3 className="mt-3 text-2xl text-amber-50">
+              {topRevenueServiceEntry ? topRevenueServiceEntry[0] : "Sem destaque ainda"}
+            </h3>
+            <p className="mt-3 text-sm text-stone-300">
+              {topRevenueServiceEntry ? formatMoney(topRevenueServiceEntry[1].total) : "Nenhum valor suficiente para destacar por enquanto."}
+            </p>
+          </div>
+          <div className="rounded-[22px] border border-white/10 bg-black/15 p-5">
+            <p className="text-xs uppercase tracking-[0.35em] text-amber-200/60">Leitura rápida</p>
+            <h3 className="mt-3 text-2xl text-amber-50">Visão profissional do caixa</h3>
+            <p className="mt-3 text-sm text-stone-300">
+              Essa tela ajuda o barbeiro a entender o que mais vende, quanto entra manualmente e qual o ritmo real do mês.
+            </p>
           </div>
         </div>
 
@@ -197,7 +239,7 @@ export default async function AdminGanhosPage({ searchParams }: { searchParams: 
               ))
             ) : (
               <div className="rounded-[24px] border border-dashed border-white/10 bg-black/15 p-5 text-sm text-stone-400">
-                Nenhum pagamento confirmado encontrado nesse mês.
+                Nenhum pagamento confirmado encontrado neste mês.
               </div>
             )}
           </div>

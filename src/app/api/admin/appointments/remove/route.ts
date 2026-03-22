@@ -1,4 +1,4 @@
-import { requireRoles } from "@/lib/auth";
+﻿import { requireRoles } from "@/lib/auth";
 import { deleteAppointmentById } from "@/lib/db";
 
 export async function POST(request: Request) {
@@ -22,3 +22,4 @@ export async function POST(request: Request) {
   deleteAppointmentById(appointmentId);
   return Response.json({ success: true });
 }
+

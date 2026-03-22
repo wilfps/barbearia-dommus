@@ -1,22 +1,26 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { formatBrazilDate, formatBrazilTime, formatBrazilWeekday } from "@/lib/brazil-time";
-import { formatMoney } from "@/lib/format";
+import { formatBrazilDate, formatBrazilDateInput, formatBrazilTime, formatBrazilWeekday } from "@/lib/brazil-time";
+import { buildWhatsAppLink, formatMoney } from "@/lib/format";
 
 type AdminAppointment = {
   id: string;
   protocol_code: string;
+  customer_id?: string | null;
   customer_name?: string;
   customer_phone?: string;
   customer_avatar_path?: string | null;
   scheduled_at: string;
   service_name?: string;
+  total_price_in_cents?: number;
   paid_amount_in_cents?: number;
   deposit_in_cents: number;
   manual_customer_name?: string | null;
   manual_customer_phone?: string | null;
+  deposit_status: string;
+  payment_scope?: string;
   created_at: string;
 };
 
@@ -63,6 +67,21 @@ export function AdminAppointmentsList({ initialAppointments }: { initialAppointm
         const isManual = Boolean(appointment.manual_customer_name || appointment.manual_customer_phone);
         const isConfirming = confirmingId === appointment.id;
         const isDeleting = deletingId === appointment.id;
+        const paymentLabel = isManual
+          ? "Agendamento manual"
+          : appointment.deposit_status === "PAID"
+            ? appointment.payment_scope === "FULL"
+              ? "Pagamento total"
+              : "Pagamento confirmado"
+            : "Pagamento pendente";
+        const paymentClassName = isManual
+          ? "border border-sky-400/35 bg-sky-400/10 text-sky-200"
+          : appointment.deposit_status === "PAID"
+            ? "border border-emerald-400/35 bg-emerald-400/10 text-emerald-200"
+            : "border border-amber-300/35 bg-amber-300/10 text-amber-100";
+        const amount = appointment.deposit_status === "PAID"
+          ? appointment.paid_amount_in_cents || appointment.deposit_in_cents
+          : appointment.total_price_in_cents || appointment.deposit_in_cents;
 
         return (
           <div
@@ -96,12 +115,15 @@ export function AdminAppointmentsList({ initialAppointments }: { initialAppointm
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[11px] uppercase tracking-[0.35em] text-amber-200/60">{appointment.protocol_code}</p>
                   <h3 className="mt-1 truncate text-xl text-amber-50">{appointment.customer_name}</h3>
-                  <p className="mt-1 text-sm text-stone-300">{appointment.customer_phone}</p>
+                  <p className="mt-1 text-sm text-stone-300">{appointment.customer_phone || "Sem telefone informado"}</p>
+                  <p className="mt-2 text-xs uppercase tracking-[0.22em] text-stone-500">
+                    {isManual ? "Reserva de balcão" : "Reserva online"}
+                  </p>
                 </div>
               </div>
               <div className="flex items-start gap-2 sm:shrink-0">
                 <div className="self-start rounded-full border border-emerald-400/55 bg-emerald-400/12 px-4 py-2 text-sm font-semibold text-emerald-200 shadow-[0_0_18px_rgba(61,220,132,0.18)]">
-                  {formatMoney(appointment.paid_amount_in_cents || appointment.deposit_in_cents)}
+                  {formatMoney(amount)}
                 </div>
                 <button
                   type="button"
@@ -133,15 +155,24 @@ export function AdminAppointmentsList({ initialAppointments }: { initialAppointm
               <div className="rounded-full border border-white/10 bg-black/10 px-3 py-2 text-sm text-stone-200">
                 {appointment.service_name}
               </div>
-              <div
-                className={`rounded-full px-3 py-2 text-xs font-semibold uppercase tracking-[0.2em] ${
-                  isManual
-                    ? "border border-sky-400/35 bg-sky-400/10 text-sky-200"
-                    : "border border-emerald-400/35 bg-emerald-400/10 text-emerald-200"
-                }`}
-              >
-                {isManual ? "Agendamento manual" : "Pagamento confirmado"}
+              <div className={`rounded-full px-3 py-2 text-xs font-semibold uppercase tracking-[0.2em] ${paymentClassName}`}>
+                {paymentLabel}
               </div>
+              {appointment.customer_phone ? (
+                <Link
+                  href={buildWhatsAppLink(appointment.customer_phone, `Olá, ${appointment.customer_name}! Tudo certo para o seu horário na Dommus?`)}
+                  target="_blank"
+                  className="rounded-full border border-emerald-400/25 bg-emerald-500/6 px-3 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-200 transition hover:bg-emerald-500/14"
+                >
+                  WhatsApp
+                </Link>
+              ) : null}
+              <Link
+                href={`/admin/agendamento-manual?customerName=${encodeURIComponent(appointment.customer_name ?? "")}&customerPhone=${encodeURIComponent(appointment.customer_phone ?? "")}&date=${formatBrazilDateInput(scheduleDate)}`}
+                className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-stone-200 transition hover:border-amber-300/45 hover:bg-amber-300/10 hover:text-amber-100"
+              >
+                Reagendar
+              </Link>
             </div>
 
             {isConfirming ? (
@@ -171,7 +202,7 @@ export function AdminAppointmentsList({ initialAppointments }: { initialAppointm
 
       {!hasAppointments ? (
         <div className="rounded-[24px] border border-dashed border-white/10 bg-black/15 p-5 text-sm text-stone-400">
-          Nenhum cliente confirmado para a data selecionada.
+          Nenhum cliente agendado para a data selecionada.
         </div>
       ) : null}
     </div>

@@ -1,4 +1,4 @@
-import { addMinutes } from "date-fns";
+﻿import { addMinutes } from "date-fns";
 import { redirect } from "next/navigation";
 import { generateProtocolCode, getBookingDurationMinutes } from "@/lib/booking";
 import { requireRoles } from "@/lib/auth";
@@ -114,3 +114,4 @@ export async function POST(request: Request) {
 
   redirect(`/admin/agendamento-manual?success=1&date=${date}`);
 }
+

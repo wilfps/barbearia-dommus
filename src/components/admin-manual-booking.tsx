@@ -41,6 +41,8 @@ type ManualBookingProps = {
   selectedDate: string;
   quickDates: QuickDate[];
   slots: Slot[];
+  initialCustomerName?: string;
+  initialCustomerPhone?: string;
 };
 
 type FormState = {
@@ -49,14 +51,6 @@ type FormState = {
   serviceId: string;
   date: string;
   time: string;
-};
-
-const emptyState: FormState = {
-  customerName: "",
-  customerPhone: "",
-  serviceId: "",
-  date: "",
-  time: "",
 };
 
 function normalizeSearch(value: string) {
@@ -81,15 +75,19 @@ export function AdminManualBooking({
   selectedDate,
   quickDates,
   slots,
+  initialCustomerName = "",
+  initialCustomerPhone = "",
 }: ManualBookingProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
   const [formState, setFormState] = useState<FormState>({
-    ...emptyState,
+    customerName: initialCustomerName,
+    customerPhone: initialCustomerPhone ? maskPhone(initialCustomerPhone) : "",
     serviceId: selectedServiceId,
     date: selectedDate,
+    time: "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingSlots, setIsLoadingSlots] = useState(false);
@@ -279,9 +277,10 @@ export function AdminManualBooking({
 
       setSuccessMessage("Agendamento manual criado com sucesso.");
       setFormState((current) => ({
-        ...emptyState,
-        serviceId: current.serviceId,
-        date: current.date,
+        ...current,
+        customerName: "",
+        customerPhone: "",
+        time: "",
       }));
       await refreshAvailability(formState.serviceId, formState.date);
     } catch (error) {
@@ -320,6 +319,8 @@ export function AdminManualBooking({
     }
   };
 
+  const currentStep = !formState.customerName || !formState.customerPhone ? 1 : !formState.serviceId ? 2 : !formState.date ? 3 : !formState.time ? 4 : 5;
+
   return (
     <div className="grid gap-8 lg:grid-cols-[1.05fr_1fr]">
       <section className="rounded-[2rem] border border-white/10 bg-[#2b2623] p-6 text-white shadow-[0_30px_80px_rgba(0,0,0,0.35)] lg:p-8">
@@ -330,6 +331,34 @@ export function AdminManualBooking({
         <p className="mt-4 max-w-xl text-sm text-[#f1e7d6]/75 sm:text-base">
           Use esse fluxo para encaixar clientes que preferem marcar direto com o barbeiro. O pagamento fica combinado na hora.
         </p>
+
+        <div className="mt-6 grid gap-3 sm:grid-cols-5">
+          {[
+            "Cliente",
+            "Serviço",
+            "Data",
+            "Horário",
+            "Confirmar",
+          ].map((label, index) => {
+            const stepNumber = index + 1;
+            const active = currentStep === stepNumber;
+            const complete = currentStep > stepNumber;
+            return (
+              <div
+                key={label}
+                className={`rounded-[1rem] border px-3 py-3 text-center text-xs font-semibold uppercase tracking-[0.22em] ${
+                  active
+                    ? "border-[#d6bf74] bg-[#3f3420] text-[#f9f1df]"
+                    : complete
+                      ? "border-emerald-400/25 bg-emerald-500/10 text-emerald-100"
+                      : "border-white/10 bg-[#1f1b18] text-white/55"
+                }`}
+              >
+                {label}
+              </div>
+            );
+          })}
+        </div>
 
         {successMessage ? (
           <div className="mt-6 rounded-[1.35rem] border border-emerald-400/35 bg-emerald-500/12 px-5 py-4 text-sm text-emerald-100">
@@ -484,6 +513,28 @@ export function AdminManualBooking({
             : "."}
         </p>
 
+        <div className="mt-6 rounded-[1.3rem] border border-white/10 bg-black/15 p-4">
+          <p className="text-xs uppercase tracking-[0.25em] text-amber-200/60">Resumo da reserva</p>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <div>
+              <p className="text-sm text-stone-400">Cliente</p>
+              <p className="mt-1 text-base text-amber-50">{formState.customerName || "Ainda não definido"}</p>
+            </div>
+            <div>
+              <p className="text-sm text-stone-400">Telefone</p>
+              <p className="mt-1 text-base text-amber-50">{formState.customerPhone || "Ainda não definido"}</p>
+            </div>
+            <div>
+              <p className="text-sm text-stone-400">Serviço</p>
+              <p className="mt-1 text-base text-amber-50">{selectedService?.name || "Escolha o serviço"}</p>
+            </div>
+            <div>
+              <p className="text-sm text-stone-400">Horário</p>
+              <p className="mt-1 text-base text-amber-50">{formState.time || "Escolha o horário"}</p>
+            </div>
+          </div>
+        </div>
+
         <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
           {isLoadingSlots ? (
             <div className="col-span-full rounded-[1.3rem] border border-white/10 bg-[#1f1b18] px-5 py-6 text-sm text-white/70">
@@ -560,7 +611,7 @@ export function AdminManualBooking({
                   >
                     {slot.time}
                     {slot.status === "booked" ? (
-                      <span className="absolute right-3 top-3 text-sm text-rose-200">x</span>
+                      <span className="absolute right-3 top-3 text-sm text-rose-200">×</span>
                     ) : null}
                     {isUnavailable ? (
                       <span className="mt-1 block text-[11px] uppercase tracking-[0.22em] text-white/45">

@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { Scissors, ShieldCheck, UserRound } from "lucide-react";
 import { getSession } from "@/lib/auth";
 
@@ -31,7 +31,10 @@ export async function AppShell({
             <p className="mt-2 max-w-2xl text-sm leading-6 text-stone-300">{subtitle}</p>
           </div>
           <nav className="grid grid-cols-2 gap-3 text-sm sm:flex sm:flex-wrap sm:items-center">
-            <Link className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-3 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition hover:border-amber-300/50 hover:bg-amber-300/10 sm:px-4 sm:py-2" href={myAreaHref}>
+            <Link
+              className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-3 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition hover:border-amber-300/50 hover:bg-amber-300/10 sm:px-4 sm:py-2"
+              href={myAreaHref}
+            >
               <UserRound className="mr-2 inline size-4" />
               Minha área
             </Link>
@@ -39,18 +42,27 @@ export async function AppShell({
             {!hideAdminLinks || session?.role === "OWNER" ? (
               <>
                 {!hideAdminLinks ? (
-                  <Link className="rounded-full border border-white/10 px-4 py-3 text-center hover:border-amber-300/50 sm:px-4 sm:py-2" href="/admin">
+                  <Link
+                    className="rounded-full border border-white/10 px-4 py-3 text-center hover:border-amber-300/50 sm:px-4 sm:py-2"
+                    href="/admin"
+                  >
                     <Scissors className="mr-2 inline size-4" />
                     Barbeiro
                   </Link>
                 ) : null}
                 {session?.role === "OWNER" ? (
-                  <Link className="rounded-full border border-white/10 px-4 py-3 text-center hover:border-amber-300/50 sm:px-4 sm:py-2" href="/owner">
+                  <Link
+                    className="rounded-full border border-white/10 px-4 py-3 text-center hover:border-amber-300/50 sm:px-4 sm:py-2"
+                    href="/owner"
+                  >
                     <ShieldCheck className="mr-2 inline size-4" />
                     Owner
                   </Link>
                 ) : !hideAdminLinks ? (
-                  <Link className="rounded-full border border-white/10 px-4 py-3 text-center hover:border-amber-300/50 sm:px-4 sm:py-2" href="/owner">
+                  <Link
+                    className="rounded-full border border-white/10 px-4 py-3 text-center hover:border-amber-300/50 sm:px-4 sm:py-2"
+                    href="/owner"
+                  >
                     <ShieldCheck className="mr-2 inline size-4" />
                     Owner
                   </Link>

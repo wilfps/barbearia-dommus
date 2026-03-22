@@ -1,4 +1,4 @@
-import fs from "node:fs";
+﻿import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import Database from "better-sqlite3";
@@ -339,8 +339,8 @@ function initDb() {
     ["service_cabelo_barba_terapia", "Cabelo e Barboterapia", "cabelo-barboterapia", "Pacote completo de cabelo e barboterapia premium.", 11000, 60, "/services/cabelo-barboterapia.jpg"],
     ["service_barba", "Barboterapia", "barboterapia", "Desenho e alinhamento com toalha quente e acabamento premium.", 3000, 30, "/services/barboterapia.jpg"],
     ["service_depilacao", "Depilação com cera", "depilacao-cera", "Depilação rápida com acabamento limpo.", 2000, 10, "/services/depilacao-cera.jpg"],
-    ["service_acabamento", "Acabamento", "acabamento", "Acabamento rápido para deixar tudo alinhado.", 1500, 10, "/services/acabamento.jpg"],
-    ["service_alisante", "Alisante", "alisante", "Alisamento rápido com acabamento profissional.", 6500, 30, "/services/pintura.jpg"],
+    ["service_acabamento", "Acabamento", "acabamento", "Acabamento rÃ¡pido para deixar tudo alinhado.", 1500, 10, "/services/acabamento.jpg"],
+    ["service_alisante", "Alisante", "alisante", "Alisamento rÃ¡pido com acabamento profissional.", 6500, 30, "/services/pintura.jpg"],
     ["service_pintura", "Pigmentação", "piguimentacao", "Pigmentação com acabamento profissional.", 9500, 60, "/services/piguimentacao.jpg"],
     ["service_progressiva", "Progressiva", "progressiva", "Progressiva completa com duração maior.", 12000, 60, "/services/pintura.jpg"],
   ].forEach(([id, name, slug, description, price_in_cents, duration_minutes, image_path]) => {
@@ -1224,6 +1224,7 @@ export function deleteLeadById(id: string) {
     WHERE id = ?
   `).run(id);
 }
+
 
 
 

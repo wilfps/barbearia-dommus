@@ -1,12 +1,13 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { addMinutes, format, setHours, setMinutes, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { AdminDailyAgendaView } from "@/components/admin-daily-agenda-view";
 import { AdminDateNavigation } from "@/components/admin-date-navigation";
 import { AppShell } from "@/components/shell";
 import { requireRoles } from "@/lib/auth";
-import { formatBrazilDateInput } from "@/lib/brazil-time";
+import { formatBrazilDateInput, formatBrazilTime } from "@/lib/brazil-time";
 import { ensureDefaultBlockedPeriodsForDate, getPrimaryBarber, listAppointmentsForAdmin, listBlockedSlots } from "@/lib/db";
+import { formatMoney } from "@/lib/format";
 import { normalizeWorkingDate } from "@/lib/quick-dates";
 
 type SearchParams = Promise<{ date?: string }>;
@@ -30,7 +31,7 @@ function normalizeDateInput(value?: string) {
 function getSelectedDateLabel(selectedDate: string) {
   const date = new Date(`${selectedDate}T12:00:00`);
   const day = format(date, "dd/MM/yyyy");
-  const weekDay = format(date, "EEEE", { locale: ptBR }).toUpperCase();
+  const weekDay = format(date, "EEEE", { locale: ptBR }).toLowerCase();
   return `${day} - ${weekDay}`;
 }
 
@@ -63,10 +64,10 @@ export default async function AdminAgendaPage({ searchParams }: { searchParams: 
   }
 
   const slots = slotTimes.map((time) => {
-    const appointment = allAppointments.find((item) => format(new Date(item.scheduled_at), "HH:mm") === time);
+    const appointment = allAppointments.find((item) => formatBrazilTime(item.scheduled_at) === time);
     const blocked = allBlockedSlots.some((item) => {
-      const start = format(new Date(item.starts_at), "HH:mm");
-      const end = format(new Date(item.ends_at), "HH:mm");
+      const start = formatBrazilTime(item.starts_at);
+      const end = formatBrazilTime(item.ends_at);
       if (start === "00:00" && end === "23:59") return false;
       return time >= start && time <= end;
     });
@@ -80,7 +81,9 @@ export default async function AdminAgendaPage({ searchParams }: { searchParams: 
             customerName: appointment.customer_name ?? "Cliente",
             serviceName: appointment.service_name ?? "Serviço",
             scheduledAt: appointment.scheduled_at,
-            paidLabel: appointment.manual_customer_name ? "Agendamento manual" : "Pagamento confirmado",
+            customerPhone: appointment.customer_phone ?? undefined,
+            amountLabel: formatMoney(appointment.paid_amount_in_cents || appointment.deposit_in_cents),
+            paidLabel: appointment.manual_customer_name ? "Agendamento manual" : appointment.payment_scope === "FULL" ? "Pagamento total" : appointment.deposit_status === "PAID" ? "Pagamento confirmado" : "Pagamento pendente",
           }
         : undefined,
     };
@@ -91,7 +94,9 @@ export default async function AdminAgendaPage({ searchParams }: { searchParams: 
     customerName: appointment.customer_name ?? "Cliente",
     serviceName: appointment.service_name ?? "Serviço",
     scheduledAt: appointment.scheduled_at,
-    paidLabel: appointment.manual_customer_name ? "Agendamento manual" : "Pagamento confirmado",
+    customerPhone: appointment.customer_phone ?? undefined,
+    amountLabel: formatMoney(appointment.paid_amount_in_cents || appointment.deposit_in_cents),
+    paidLabel: appointment.manual_customer_name ? "Agendamento manual" : appointment.payment_scope === "FULL" ? "Pagamento total" : appointment.deposit_status === "PAID" ? "Pagamento confirmado" : "Pagamento pendente",
   }));
 
   return (
@@ -124,3 +129,4 @@ export default async function AdminAgendaPage({ searchParams }: { searchParams: 
     </AppShell>
   );
 }
+

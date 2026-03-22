@@ -22,6 +22,8 @@ type SearchParams = Promise<{
   error?: string;
   date?: string;
   serviceId?: string;
+  customerName?: string;
+  customerPhone?: string;
 }>;
 
 function normalizeSelectedDate(value?: string) {
@@ -44,9 +46,11 @@ export default async function AdminManualBookingPage({ searchParams }: { searchP
     email: customer.email,
   }));
   const selectedDate = normalizeSelectedDate(params.date);
+
   if (barber?.id) {
     ensureDefaultBlockedPeriodsForDate(barber.id, selectedDate);
   }
+
   const selectedServiceId = params.serviceId ?? services[0]?.id ?? "";
   const selectedService = getServiceById(selectedServiceId);
   const quickDates = getQuickWeekDates(new Date()).map((date) => ({
@@ -110,6 +114,8 @@ export default async function AdminManualBookingPage({ searchParams }: { searchP
         selectedDate={selectedDate}
         quickDates={quickDates}
         slots={slots}
+        initialCustomerName={params.customerName ?? ""}
+        initialCustomerPhone={params.customerPhone ?? ""}
       />
     </AppShell>
   );
