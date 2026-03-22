@@ -991,12 +991,60 @@ export function deleteBlockedSlotById(id: string) {
     markDefaultBlockedDayReleased(slot.barber_id, formatBrazilDateInput(slot.starts_at));
   }
 
-  if (slot) {
-    const defaultPeriodKey = getDefaultBlockedPeriodKey(slot);
-    if (defaultPeriodKey) {
-      markDefaultBlockedPeriodReleased(slot.barber_id, formatBrazilDateInput(slot.starts_at), defaultPeriodKey);
+    if (slot) {
+      const defaultPeriodKey = getDefaultBlockedPeriodKey(slot);
+      if (defaultPeriodKey) {
+        markDefaultBlockedPeriodReleased(slot.barber_id, formatBrazilDateInput(slot.starts_at), defaultPeriodKey);
+      }
     }
   }
+
+export function releaseBlockedSlotTimeById(input: { id: string; dateIso: string; time: string }) {
+  const slot = db.prepare(`
+    SELECT id, barber_id, starts_at, ends_at, reason
+    FROM blocked_slots
+    WHERE id = ?
+    LIMIT 1
+  `).get(input.id) as BlockedSlotRecord | undefined;
+
+  if (!slot) {
+    return false;
+  }
+
+  const blockStart = new Date(slot.starts_at);
+  const blockEnd = new Date(slot.ends_at);
+  const releasedStart = new Date(toBrazilDateTimeIso(input.dateIso, input.time));
+  const releasedEnd = new Date(releasedStart.getTime() + 30 * 60 * 1000);
+
+  if (releasedStart < blockStart || releasedStart > blockEnd) {
+    return false;
+  }
+
+  db.prepare(`
+    DELETE FROM blocked_slots
+    WHERE id = ?
+  `).run(input.id);
+
+  const leftEnd = new Date(releasedStart.getTime() - 1000);
+  if (blockStart <= leftEnd) {
+    createBlockedSlot({
+      barberId: slot.barber_id,
+      startsAt: blockStart.toISOString(),
+      endsAt: leftEnd.toISOString(),
+      reason: slot.reason ?? "Bloqueado",
+    });
+  }
+
+  if (releasedEnd <= blockEnd) {
+    createBlockedSlot({
+      barberId: slot.barber_id,
+      startsAt: releasedEnd.toISOString(),
+      endsAt: blockEnd.toISOString(),
+      reason: slot.reason ?? "Bloqueado",
+    });
+  }
+
+  return true;
 }
 
 export function ensureBlockedDay(barberId: string, dateIso: string, reason: string) {

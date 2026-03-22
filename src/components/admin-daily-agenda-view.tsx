@@ -55,7 +55,7 @@ export function AdminDailyAgendaView({
     }, 0);
   }, [appointments]);
 
-  async function handleRemoveBlockedSlot(blockedSlotId: string) {
+  async function handleRemoveBlockedSlot(blockedSlotId: string, time: string) {
     try {
       setRemovingBlockId(blockedSlotId);
       const response = await fetch("/api/admin/blocks/remove", {
@@ -64,7 +64,7 @@ export function AdminDailyAgendaView({
           "Content-Type": "application/json",
           "X-Requested-With": "XMLHttpRequest",
         },
-        body: JSON.stringify({ blockId: blockedSlotId, date: selectedDate }),
+        body: JSON.stringify({ blockId: blockedSlotId, date: selectedDate, time }),
       });
 
       if (!response.ok) {
@@ -73,14 +73,14 @@ export function AdminDailyAgendaView({
 
       setLocalSlots((current) =>
         current.map((slot) =>
-          slot.blockedSlotId === blockedSlotId
+          slot.time === time
             ? { ...slot, blocked: false, blockedSlotId: undefined }
             : slot,
         ),
       );
 
       setSelectedSlot((current) =>
-        current?.blockedSlotId === blockedSlotId
+        current?.time === time
           ? { ...current, blocked: false, blockedSlotId: undefined }
           : current,
       );
@@ -204,7 +204,15 @@ export function AdminDailyAgendaView({
                 </>
               ) : slot.blocked ? (
                 <div className="mt-2 flex items-end justify-between gap-2">
-                  <p className="text-xs uppercase tracking-[0.25em] text-amber-100/80">Bloqueado</p>
+                  <div className="space-y-1">
+                    <p className="text-xs uppercase tracking-[0.25em] text-amber-100/80">Bloqueado</p>
+                    {slot.blockedSlotId ? (
+                      <span className="inline-flex items-center gap-1 text-xs font-medium text-red-200/90">
+                        <X className="size-3" />
+                        Liberar
+                      </span>
+                    ) : null}
+                  </div>
                   {slot.blockedSlotId ? (
                     <span className="inline-flex size-5 items-center justify-center rounded-full border border-red-400/30 bg-red-500/10 text-red-100">
                       <X className="size-3" />
@@ -258,7 +266,7 @@ export function AdminDailyAgendaView({
                       <span className="text-stone-300">Liberar esse horário agora?</span>
                       <button
                         type="button"
-                        onClick={() => handleRemoveBlockedSlot(selectedSlot.blockedSlotId!)}
+                        onClick={() => handleRemoveBlockedSlot(selectedSlot.blockedSlotId!, selectedSlot.time)}
                         disabled={removingBlockId === selectedSlot.blockedSlotId}
                         className="rounded-full bg-emerald-400 px-3 py-1.5 text-sm font-semibold text-stone-950 transition hover:bg-emerald-300 disabled:opacity-60"
                       >
